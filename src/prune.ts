@@ -6,9 +6,11 @@
 // entirely below the window floor: instant, reclaims disk immediately, zero
 // vacuum work.
 //
-// refuses to run if WINDOW_DAYS is unset or under 7, read from the raw env so a
-// missing var can never wipe the window. never touches cold_* tables, tokens,
-// contracts, or token_balances.
+// the floor is now WINDOW_BLOCKS below head. the old 7-day guard was a time-based
+// floor that rejected every block-count window that actually fits on disk, so it
+// is gone: dropPartitionsBelow only ever drops partitions strictly below the
+// floor, and the floor can never exceed head, so a bad env var cannot wipe live
+// data. never touches cold_* tables, tokens, contracts, or token_balances.
 
 import { getHead } from "./chain.js";
 import { sql } from "./db.js";
@@ -17,33 +19,12 @@ import { dropPartitionsBelow } from "./partitions.js";
 import { findWindowFloor, setSyncValue, WINDOW_FLOOR_KEY } from "./window.js";
 
 const PRUNE_INTERVAL_HOURS = Number(process.env.PRUNE_INTERVAL_HOURS ?? 24);
-const MIN_WINDOW_DAYS = 7;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function guardWindowDays(): number | null {
-  const raw = process.env.WINDOW_DAYS;
-  if (raw == null || raw.trim() === "") {
-    log.error("pruner refuses to run: WINDOW_DAYS is not set");
-    return null;
-  }
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < MIN_WINDOW_DAYS) {
-    log.error(
-      `pruner refuses to run: WINDOW_DAYS='${raw}' is absurd (must be at least ${MIN_WINDOW_DAYS})`,
-    );
-    return null;
-  }
-  return n;
-}
-
 export async function pruneOnce(): Promise<void> {
-  const windowDays = guardWindowDays();
-  if (windowDays == null) return;
-
   const head = await getHead();
-  const cutoff = Math.floor(Date.now() / 1000) - windowDays * 86_400;
-  const floor = await findWindowFloor(head, cutoff);
+  const floor = findWindowFloor(head);
   await setSyncValue(WINDOW_FLOOR_KEY, floor);
 
   const dropped = await dropPartitionsBelow(floor);

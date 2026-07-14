@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# secrets and local env
+.env
+.env.*
+!.env.example
+
+# logs and os cruft
+*.log
+.DS_Store

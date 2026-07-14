@@ -2,46 +2,26 @@
 //
 // the explorer indexes only a recent window and falls back to live rpc for
 // anything older. this is a deliberate product decision, not a limitation. the
-// window floor is the lowest block whose timestamp is within WINDOW_DAYS of now.
-// backfill_floor is the contiguous-from-head watermark: the lowest block above
-// which every range is done, and the number the ui should trust as "fully
-// indexed from here up".
+// window floor is a fixed block count below head (WINDOW_BLOCKS): a block-count
+// window sizes disk directly (bytes ~ blocks x head density) with no dependency
+// on the chain's volatile block time. backfill_floor is the contiguous-from-head
+// watermark: the lowest block above which every range is done, and the number
+// the ui should trust as "fully indexed from here up".
 
-import { getBlockHeaderTimestamp } from "./chain.js";
 import { sql, type Executor } from "./db.js";
 
-export const WINDOW_DAYS = Number(process.env.WINDOW_DAYS ?? 90);
-
-const DAY_SECONDS = 86_400;
+// blocks of recent history to index. default ~100 GB at measured head density.
+export const WINDOW_BLOCKS = Number(process.env.WINDOW_BLOCKS ?? 3_000_000);
 
 // sync_state pseudo-workers used to publish scalars the frontend reads.
 export const WINDOW_FLOOR_KEY = "window_floor";
 export const BACKFILL_FLOOR_KEY = "backfill_floor";
 
-export function windowCutoffSec(nowMs = Date.now()): number {
-  return Math.floor(nowMs / 1000) - WINDOW_DAYS * DAY_SECONDS;
-}
-
-// binary search for the lowest block whose timestamp is at or above the cutoff.
-// about log2(head) header reads, so ~24 calls against an 8.9m-block chain.
-export async function findWindowFloor(
-  head: number,
-  cutoffSec = windowCutoffSec(),
-): Promise<number> {
-  let lo = 0;
-  let hi = head;
-  let ans = head;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const ts = await getBlockHeaderTimestamp(mid);
-    if (ts >= cutoffSec) {
-      ans = mid;
-      hi = mid - 1;
-    } else {
-      lo = mid + 1;
-    }
-  }
-  return ans;
+// the lowest block the window covers: WINDOW_BLOCKS below head, clamped at
+// genesis. a single subtraction, no rpc — the floor is now purely block-count
+// derived, so it is exact and cheap.
+export function findWindowFloor(head: number): number {
+  return Math.max(0, head - WINDOW_BLOCKS + 1);
 }
 
 export async function setSyncValue(

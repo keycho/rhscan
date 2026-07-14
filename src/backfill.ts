@@ -1,7 +1,7 @@
 // windowed backfill worker: a work queue, not a for loop.
 //
-// we do not index full history. on startup we find the window floor (the lowest
-// block within WINDOW_DAYS of now) and seed backfill_ranges only from there to
+// we do not index full history. on startup we find the window floor (WINDOW_BLOCKS
+// below head) and seed backfill_ranges only from there to
 // head. workers claim ranges newest-first (order by from_block desc) so recent
 // data lands within minutes. ranges are aligned to a fixed RANGE_SIZE grid so
 // widening the window later re-seeds cleanly with no overlap.
@@ -19,7 +19,7 @@ import { log } from "./log.js";
 import {
   findWindowFloor,
   setSyncValue,
-  WINDOW_DAYS,
+  WINDOW_BLOCKS,
   WINDOW_FLOOR_KEY,
   BACKFILL_FLOOR_KEY,
 } from "./window.js";
@@ -218,12 +218,12 @@ function formatEta(sec: number): string {
 
 export async function runBackfill(stopped: () => boolean = () => false): Promise<void> {
   const head = await getHead();
-  const windowFloor = await findWindowFloor(head);
+  const windowFloor = findWindowFloor(head);
   const gridFloor = gridFloorOf(windowFloor);
   const windowBlocks = head - windowFloor + 1;
 
   log.info(
-    `window ${WINDOW_DAYS} days: floor block ${windowFloor} (grid ${gridFloor}), head ${head}, ${windowBlocks} blocks in window`,
+    `window ${WINDOW_BLOCKS} blocks: floor block ${windowFloor} (grid ${gridFloor}), head ${head}, ${windowBlocks} blocks in window`,
   );
   await setSyncValue(WINDOW_FLOOR_KEY, windowFloor);
 

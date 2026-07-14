@@ -1,0 +1,30 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "services": {
+    "backfill": {
+      "build": {
+        "builder": "NIXPACKS",
+        "buildCommand": "corepack enable && pnpm install --frozen-lockfile"
+      },
+      "deploy": {
+        "startCommand": "MODE=backfill pnpm start",
+        "numReplicas": 1,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 5,
+        "sleepApplication": false
+      }
+    },
+    "tail": {
+      "build": {
+        "builder": "NIXPACKS",
+        "buildCommand": "corepack enable && pnpm install --frozen-lockfile"
+      },
+      "deploy": {
+        "startCommand": "MODE=tail pnpm start",
+        "numReplicas": 1,
+        "restartPolicyType": "ALWAYS",
+        "sleepApplication": false
+      }
+    }
+  }
+}

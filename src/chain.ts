@@ -172,15 +172,6 @@ export function getBlockReceipts(n: number): Promise<RawReceipt[]> {
   return rpc<RawReceipt[]>("eth_getBlockReceipts", [toHex(n)]);
 }
 
-// header-only read for window-floor binary search: cheap, no transactions.
-export async function getBlockHeaderTimestamp(n: number): Promise<number> {
-  const b = await rpc<{ timestamp: `0x${string}` }>("eth_getBlockByNumber", [
-    toHex(n),
-    false,
-  ]);
-  return Number(BigInt(b.timestamp));
-}
-
 // cold-path reads: single tx / block / account lookups for data below the
 // window. these are not batched hot-path calls, they serve one user query.
 export function getTransactionByHash(hash: string): Promise<RawTx | null> {

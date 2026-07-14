@@ -1,6 +1,6 @@
 // token holders: on-demand hydration plus incremental maintenance.
 //
-// with a window measured in days, a token's transfer history almost always
+// with a recent-blocks window, a token's transfer history almost always
 // predates the window, so holders cannot come from indexed transfers. instead we
 // hydrate one token at a time: pull that single token's whole Transfer history
 // via chunked eth_getLogs from block 1 to head, replay it to a balance set, and

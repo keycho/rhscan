@@ -15,11 +15,11 @@ postgres, and a resolver library the frontend calls for anything older.
 ## the windowed model (read this)
 
 we do not index full history, ever. the explorer indexes a rolling recent window
-(`WINDOW_DAYS`) and falls back to live rpc for anything older. this is a
+(`WINDOW_BLOCKS`) and falls back to live rpc for anything older. this is a
 deliberate product decision, built for, not worked around.
 
-- **backfill** seeds work only from the window floor (the lowest block within
-  `WINDOW_DAYS` of now, found by binary search) up to head, and claims ranges
+- **backfill** seeds work only from the window floor (`WINDOW_BLOCKS` below head)
+  up to head, and claims ranges
   newest-first so the explorer is useful within minutes.
 - **tail** follows the head with reorg handling.
 - **pruner** rolls the window forward by dropping whole partitions once they fall
@@ -68,23 +68,25 @@ what this changes:
 - the whole chain (9.6M blocks) is about **270 GB**, not 520. head-density
   extrapolation overcounted.
 
-sizing at the recent rate (~27-40 GB/day):
+the window is sized in blocks, not days: `WINDOW_BLOCKS` maps straight to disk
+(bytes ~ blocks x head density, ~33-35 KB/block at the head) and does not drift as
+the chain's block time swings. at the measured head density:
 
 | target | window |
 | --- | --- |
-| ~50 GB  | ~1.5 days |
-| ~100 GB | ~3 days |
-| ~150 GB | ~4-5 days |
+| ~50 GB  | ~1.5M blocks |
+| ~100 GB | ~3M blocks |
+| ~150 GB | ~4.5M blocks |
 
-**recommended default `WINDOW_DAYS=7`** (~200-280 GB, within the decile-7 spike),
-which the `.env.example` now uses. if 150 GB is a hard ceiling, use ~4 days, but
-the pruner refuses under 7 as a safety floor, so to go lower either relax that
-floor or switch the knob to hours. with partition-drop pruning there is no bloat,
-so on-disk size is just window content plus a partition of slack.
+**recommended default `WINDOW_BLOCKS=3000000`** (~100 GB), which the
+`.env.example` now uses. there is no lower-bound guard: the pruner only ever drops
+partitions strictly below the floor and the floor can never exceed head, so any
+window size is safe. with partition-drop pruning there is no bloat, so on-disk
+size is just window content plus a partition of slack.
 
 **backfill wall-clock** is rpc-bound (2 batched calls/block). at a sustained S
-req/s, blocks/s is S/2: a 7-day window (~6M blocks) is ~1.7 h at 1000 req/s,
-~33 min at 3000, ~17 min at 6000.
+req/s, blocks/s is S/2: a 3M-block window is ~50 min at 1000 req/s,
+~17 min at 3000, ~8 min at 6000.
 
 ## partitioning
 
@@ -109,7 +111,7 @@ partitioning breaks two things, both solved:
 
 ## tokens and holders
 
-with a window measured in days, a token's transfer history predates the window,
+with a recent-blocks window, a token's transfer history predates the window,
 so holders cannot come from indexed transfers. instead each token is hydrated on
 demand (`src/holders.ts`): pull that one token's whole `Transfer` history via
 chunked `eth_getLogs` (starting at its known deployment block when we have it,
@@ -154,10 +156,20 @@ window floor, because an address's full history cannot be reconstructed from rpc
 
 ## deploy
 
-railway, single long-running process; database is supabase postgres. set
-`DATABASE_URL`, `RPC_URL`, `WINDOW_DAYS`, and `MODE` (default `both`). start
-command `pnpm --filter @fletch/rhscan start`. build indexes once with
-`pnpm --filter @fletch/rhscan indexes:create` after the first backfill catches up.
+railway, database is supabase postgres. `railway.json` defines two services that
+share one database and scale independently:
+
+- **backfill** (`MODE=backfill pnpm start`) — a bursty batch job. it seeds the
+  work queue, drains it, and exits, so its restart policy is `ON_FAILURE` (retry
+  a crash, but a clean finish stays finished). scale replicas up for a fast
+  catch-up, then leave it at 0/1.
+- **tail** (`MODE=tail pnpm start`) — a permanent process following the head with
+  reorg handling, restart policy `ALWAYS`, kept at a single replica.
+
+point both services' `DATABASE_URL` at the same Postgres (on railway, reference
+the shared Postgres service's `DATABASE_URL` from each). set `RPC_URL`,
+`WINDOW_BLOCKS`, and `MODE` per service. build indexes once with
+`pnpm indexes:create` after the first backfill catches up.
 
 ## env vars
 
@@ -168,7 +180,7 @@ see `.env.example` for the full list. the important ones:
 | `DATABASE_URL` | (required) | supabase postgres connection string |
 | `RPC_URL` | public rpc | paid provider rpc for backfill |
 | `MODE` | `both` | `backfill` \| `tail` \| `both` \| `tokens` \| `prune` |
-| `WINDOW_DAYS` | `90` | days of recent history to index (see sizing note) |
+| `WINDOW_BLOCKS` | `3000000` | blocks of recent history to index (see sizing note) |
 | `PRUNE_INTERVAL_HOURS` | `24` | how often the window rolls forward |
 | `RANGE_SIZE` | `200` | blocks per backfill range |
 | `CONCURRENCY` | `50` | parallel backfill workers |

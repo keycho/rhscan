@@ -1,6 +1,6 @@
 -- token holders, hydration state and stats.
 --
--- with a window measured in days, almost every token's transfer history predates
+-- with a recent-blocks window, almost every token's transfer history predates
 -- the window, so holders cannot be derived from indexed transfers. instead each
 -- token is hydrated on demand: we pull that one token's whole Transfer history
 -- via eth_getLogs and replay it into token_balances, then maintain it
