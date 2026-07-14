@@ -1,28 +1,66 @@
-// top navigation: wordmark, primary links, and a compact search that is present
-// on every page. server rendered.
+"use client";
+
+// the header band: bracket wordmark, primary nav with an active-pill, and — on
+// every page except home — an inline search. on home the search lives in the
+// masthead instead, so the header stays clean. server chrome (utility strip,
+// footer) is rendered separately in the layout.
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SearchBox } from "@/components/SearchBox";
 
-export function Nav() {
+const LINKS: { href: string; label: string; match: (p: string) => boolean }[] = [
+  { href: "/", label: "home", match: (p) => p === "/" },
+  { href: "/blocks", label: "blockchain", match: (p) => p.startsWith("/blocks") || p.startsWith("/block/") || p.startsWith("/tx") || p.startsWith("/address") },
+  { href: "/tokens", label: "tokens", match: (p) => p.startsWith("/tokens") || p.startsWith("/token/") },
+];
+
+export function Wordmark() {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-bg/95 backdrop-blur">
-      <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
-        <Link href="/" className="flex items-baseline gap-1.5 text-text hover:text-text">
-          <span className="text-base font-bold tracking-tight">rhscan</span>
-          <span className="text-2xs text-faint">robinhood chain</span>
-        </Link>
-        <nav className="flex items-center gap-4 text-[13px]">
-          <Link href="/" className="text-muted hover:text-text">
-            home
-          </Link>
-          <Link href="/tokens" className="text-muted hover:text-text">
-            tokens
-          </Link>
+    <Link
+      href="/"
+      className="mono flex flex-none items-center gap-[1px] text-[18px] font-semibold tracking-[-0.02em] no-underline hover:no-underline"
+    >
+      <span className="font-medium text-green">[</span>
+      <span className="text-text">rhscan</span>
+      <span className="font-medium text-green">]</span>
+    </Link>
+  );
+}
+
+export function Nav() {
+  const pathname = usePathname() || "/";
+  const isHome = pathname === "/";
+
+  return (
+    <header className="border-b border-border bg-surface">
+      <div className="mx-auto flex h-[60px] max-w-page items-center gap-[22px] px-[22px]">
+        <Wordmark />
+
+        {!isHome && (
+          <div className="hidden min-w-0 flex-1 sm:block">
+            <SearchBox variant="header" />
+          </div>
+        )}
+
+        <nav className={`flex items-center gap-[2px] text-[13.5px] font-medium ${isHome ? "ml-auto" : "flex-none"}`}>
+          {LINKS.map((l) => {
+            const on = l.match(pathname);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`rounded-[5px] px-[13px] py-[7px] no-underline transition-colors hover:no-underline ${
+                  on
+                    ? "bg-[rgba(12,143,79,0.10)] text-green"
+                    : "text-secondary hover:bg-[#f0f1f3]"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
-        <div className="ml-auto w-full min-w-[220px] max-w-[440px] flex-1 sm:w-auto">
-          <SearchBox />
-        </div>
       </div>
     </header>
   );

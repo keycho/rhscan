@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Panel, Field, Muted, Empty, ScrollX, Pill } from "@/components/primitives";
+import { Container, Panel, Field, Muted, Empty, ScrollX, Pill } from "@/components/primitives";
 import { AddrLink, TxLink, TokenLink } from "@/components/links";
 import { CopyButton } from "@/components/CopyButton";
 import { AddressTxTable } from "@/components/tables";
@@ -57,7 +57,7 @@ export default async function AddressPage({
   const active = tabs.some((t) => t.key === tab) ? tab! : "transactions";
 
   return (
-    <div className="space-y-4">
+    <Container className="space-y-4 py-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-semibold">{header.isContract ? "contract" : "address"}</h1>
         <Pill tone={header.isContract ? "accent" : "neutral"}>
@@ -164,6 +164,6 @@ export default async function AddressPage({
           </div>
         )}
       </Panel>
-    </div>
+    </Container>
   );
 }
