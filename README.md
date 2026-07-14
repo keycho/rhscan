@@ -1,4 +1,16 @@
-# rhscan indexer
+# rhscan
+
+a block explorer for robinhood chain (chain 4663, arbitrum orbit l2, eth gas).
+two parts sharing one database:
+
+- **indexer** (`src/`, deploys to railway) — a rolling-window indexer plus the
+  cold-path resolver library. documented below.
+- **web explorer** (`app/`, `components/`, `src/web/`, deploys to vercel) — a
+  next.js app router frontend that reads postgres directly and calls the same
+  resolver. documented in [`docs/web.md`](docs/web.md). query plans for the two
+  reads the brief calls out are in [`docs/query-plans.md`](docs/query-plans.md).
+
+## indexer
 
 the indexer and database layer for a robinhood chain block explorer. a single
 long-running process that keeps a rolling recent window of chain data in

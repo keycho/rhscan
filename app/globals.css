@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0d12;
+  --panel: #111620;
+  --panel-2: #161c28;
+  --border: #232b39;
+  --text: #d8dee9;
+  --muted: #8b95a7;
+  --faint: #5b6474;
+  --accent: #6ea8fe;
+  --accent-hover: #a6c8ff;
+  --ok: #3fb950;
+  --bad: #f85149;
+  --warn: #d8a531;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: theme("fontFamily.sans");
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* thin, unobtrusive scrollbars for the dense tables */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+*::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+/* number/hex columns lock to tabular figures so rows line up */
+.mono {
+  font-family: theme("fontFamily.mono");
+  font-variant-numeric: tabular-nums;
+}
+
+/* a horizontal scroll container that never lets the page body scroll sideways */
+.scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+}

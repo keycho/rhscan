@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "indexer and database layer for a robinhood chain block explorer",
+  "description": "indexer, database layer and web explorer for a robinhood chain block explorer",
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
@@ -11,20 +11,34 @@
     "backfill": "MODE=backfill tsx src/index.ts",
     "tail": "MODE=tail tsx src/index.ts",
     "prune": "MODE=prune tsx src/index.ts",
-    "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "echo no unit tests yet, transform decoding is validated against live rpc",
-    "sample": "tsx src/sample.ts",
     "holders": "MODE=holders tsx src/index.ts",
-    "verify:balances": "tsx src/verify.ts"
+    "sample": "tsx src/sample.ts",
+    "verify:balances": "tsx src/verify.ts",
+    "test": "echo no unit tests yet, transform decoding is validated against live rpc",
+    "typecheck": "tsc -p tsconfig.indexer.json && tsc -p tsconfig.json --noEmit",
+    "typecheck:indexer": "tsc -p tsconfig.indexer.json",
+    "build": "next build",
+    "web:dev": "next dev",
+    "web:start": "next start",
+    "web:lint": "next lint",
+    "typecheck:web": "tsc -p tsconfig.json --noEmit",
+    "explain": "psql \"$DATABASE_URL\" -f docs/explain.sql"
   },
   "dependencies": {
+    "next": "15.5.4",
     "pino": "10.3.1",
     "postgres": "3.4.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "viem": "2.55.2"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17",
     "tsx": "4.23.1",
     "typescript": "5.9.3"
   }
