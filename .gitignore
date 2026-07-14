@@ -2,6 +2,11 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# next.js
+.next/
+next-env.d.ts
+.vercel/
+
 # secrets and local env
 .env
 .env.*
