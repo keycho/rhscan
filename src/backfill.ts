@@ -66,7 +66,7 @@ async function seedRanges(gridFloor: number, head: number): Promise<void> {
     select gs as from_block,
            least(gs + ${RANGE_SIZE - 1}, ${head}) as to_block,
            'pending'
-    from generate_series(${gridFloor}, ${head}, ${RANGE_SIZE}) as gs
+    from generate_series(${gridFloor}::bigint, ${head}::bigint, ${RANGE_SIZE}::bigint) as gs
     on conflict (from_block) do nothing
   `;
 }
