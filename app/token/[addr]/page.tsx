@@ -19,7 +19,9 @@ import { loadDrift } from "@/src/web/cache";
 import { holderAnalytics } from "@/src/web/holder-analytics";
 import { formatNumber, formatShare, formatUnits, shortAddr } from "@/src/web/format";
 
-export const revalidate = 20;
+// db-backed: render at request time so `next build` runs no query.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const isAddr = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s);
 

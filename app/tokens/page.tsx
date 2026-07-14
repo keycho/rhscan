@@ -6,7 +6,9 @@ import { topTokens, newTokenFeed } from "@/src/web/tokens-web";
 import { loadWatermarks } from "@/src/web/cache";
 import { formatNumber } from "@/src/web/format";
 
-export const revalidate = 30;
+// db-backed: render at request time so `next build` runs no query.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "tokens",

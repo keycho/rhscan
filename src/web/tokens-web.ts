@@ -33,7 +33,11 @@ export interface TokenCard {
   windowedTransfers: number | null;
 }
 
-const cardColumns = sql`
+// a lazy fragment — a function, not a top-level `sql` call — so importing this
+// module never touches the db. `next build` collects page data for the
+// db-backed (force-dynamic) routes without a live DATABASE_URL; the fragment is
+// only built when a query actually runs. shared column list for a token card.
+const cardColumns = () => sql`
   t.address, t.name, t.symbol, t.decimals, t.token_type, t.total_supply,
   ts.holder_count, ts.transfer_count, ts.first_transfer_block, ts.top10_share,
   coalesce(ts.deployer_address, c.creator) as deployer,
@@ -106,7 +110,7 @@ export async function tokenCollisions(term: string, limit = 50): Promise<TokenCa
   const t = term.trim().toLowerCase();
   if (!t) return [];
   const rows = await sql<CardRow[]>`
-    select ${cardColumns}
+    select ${cardColumns()}
       from tokens t
       left join token_stats ts on ts.token_address = t.address
       left join contracts c on c.address = t.address
@@ -134,7 +138,7 @@ export async function collidingTokens(
   const s = symbol?.trim().toLowerCase() ?? null;
   if (!n && !s) return [];
   const rows = await sql<CardRow[]>`
-    select ${cardColumns}
+    select ${cardColumns()}
       from tokens t
       left join token_stats ts on ts.token_address = t.address
       left join contracts c on c.address = t.address
@@ -212,7 +216,7 @@ export async function tokenTransfers(address: string, limit = 50): Promise<Token
 // tokens landing: most active tokens by transfer count, metadata joined.
 export async function topTokens(limit = 50): Promise<TokenCard[]> {
   const rows = await sql<CardRow[]>`
-    select ${cardColumns}
+    select ${cardColumns()}
       from token_stats ts
       join tokens t on t.address = ts.token_address
       left join contracts c on c.address = t.address

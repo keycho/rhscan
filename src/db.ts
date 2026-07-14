@@ -11,23 +11,50 @@ import postgres from "postgres";
 import { log } from "./log.js";
 import { COLUMNS, type BlockRows } from "./transform.js";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  throw new Error("DATABASE_URL is not set, see .env.example");
-}
-
 // one shared pool for the whole process. every worker (backfill, tail, tokens,
-// holders, pruner, partition maintainer) and the web read helpers import this
+// holders, pruner, partition maintainer) and the web read helpers import the
 // same `sql`, so the process opens at most PG_POOL_MAX connections total, not a
 // pool per worker. keep it well under supabase's session-pooler client cap (15):
 // against the pooler set PG_POOL_MAX=5. default 10.
 const PG_POOL_MAX = Number(process.env.PG_POOL_MAX ?? 10);
 
-export const sql = postgres(url, {
-  max: PG_POOL_MAX,
-  idle_timeout: 30,
-  connect_timeout: 15,
-  onnotice: () => {},
+// the pool is created lazily on first use, not at module import. `next build`'s
+// "collect page data" phase imports every route module (even force-dynamic ones
+// that never render at build), so creating the pool — or throwing on a missing
+// DATABASE_URL — at import time would fail the build. all db-backed routes are
+// force-dynamic and run no query during build, so nothing here is touched until
+// a real request queries. a missing DATABASE_URL still fails loudly, at the
+// first query rather than at import.
+let pool: postgres.Sql | null = null;
+function connect(): postgres.Sql {
+  if (pool) return pool;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set, see .env.example");
+  pool = postgres(url, {
+    max: PG_POOL_MAX,
+    idle_timeout: 30,
+    connect_timeout: 15,
+    onnotice: () => {},
+  });
+  return pool;
+}
+
+// a lazy proxy over the pool. tagged-template calls (sql`...`) hit `apply`;
+// method/property access (sql.begin, sql.end, sql.unsafe) hits `get`. neither
+// trap fires at import, so this module is import-safe without a live
+// DATABASE_URL; the pool connects on the first query.
+export const sql: postgres.Sql = new Proxy(function () {} as unknown as postgres.Sql, {
+  apply(_target, _thisArg, args: unknown[]) {
+    return (connect() as unknown as (...a: unknown[]) => unknown)(...args);
+  },
+  get(_target, prop) {
+    if (prop === "then") return undefined; // never look thenable
+    const p = connect() as unknown as Record<PropertyKey, unknown>;
+    const value = p[prop];
+    return typeof value === "function"
+      ? (value as (...a: unknown[]) => unknown).bind(p)
+      : value;
+  },
 });
 
 export type Executor = postgres.Sql | postgres.TransactionSql;
@@ -205,8 +232,9 @@ export async function writeColdBlocks(
 export { ZERO_ADDRESS };
 
 export async function closeDb(): Promise<void> {
+  if (!pool) return; // nothing ever connected
   try {
-    await sql.end({ timeout: 5 });
+    await pool.end({ timeout: 5 });
   } catch (err) {
     log.warn(`error closing db: ${String(err)}`);
   }

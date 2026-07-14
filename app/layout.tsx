@@ -15,6 +15,12 @@ export const metadata: Metadata = {
     "a fast, information-dense block explorer for robinhood chain (chain 4663). blocks, transactions, addresses, tokens, and token name-collision disambiguation. indexes a rolling recent window, and says so.",
 };
 
+// the utility strip queries the db (median gas) on every route, so render the
+// whole app at request time. this also keeps the auto-generated /_not-found — the
+// only otherwise-static page — out of build-time static generation, so `next
+// build` executes no database query.
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // the utility strip carries live eth price + gas on every page. both are
   // best-effort: a failure renders a dash, never blocks the page.

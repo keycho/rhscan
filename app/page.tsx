@@ -7,9 +7,11 @@ import { latestBlocks, latestTransactions } from "@/src/web/lists";
 import { getEthMarket } from "@/src/web/price";
 import { loadWatermarks } from "@/src/web/cache";
 
-// head-adjacent: short revalidation. the head lists then poll /api/head client
-// side to follow the chain between revalidations.
-export const revalidate = 5;
+// db-backed: render at request time so `next build` runs no query (static
+// generation would hit the transaction pooler and time out). the head lists
+// still poll /api/head client-side to follow the chain live.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Home() {
   const [eth, stats, blocks, txns, chart, wm] = await Promise.all([

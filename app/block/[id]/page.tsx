@@ -12,7 +12,9 @@ import { resolveBlock } from "@/src/resolve";
 import { loadBlockByNumber, loadWatermarks, isFinal } from "@/src/web/cache";
 import { formatEth, formatGwei, formatNumber, formatUtc, gasPercent, shortHash } from "@/src/web/format";
 
-export const revalidate = 5;
+// db-backed: render at request time so `next build` runs no query.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const isNum = (s: string) => /^[0-9]+$/.test(s);
 const isHash = (s: string) => /^0x[0-9a-fA-F]{64}$/.test(s);
