@@ -2,13 +2,24 @@
 //
 // with a recent-blocks window, a token's transfer history almost always
 // predates the window, so holders cannot come from indexed transfers. instead we
-// hydrate one token at a time: pull that single token's whole Transfer history
-// via chunked eth_getLogs from block 1 to head, replay it to a balance set, and
-// store it in token_balances. after that the balances are maintained
-// incrementally from windowed transfers (see applyTransferDeltas in db.ts, which
-// only applies deltas for rows actually inserted, so a retried range never double
-// applies). hydration is authoritative and idempotent (delete then replay), so
-// re-hydrating corrects any drift.
+// hydrate tokens by pulling their whole Transfer history via chunked eth_getLogs,
+// replaying it to a balance set, and storing it in token_balances. after that the
+// balances are maintained incrementally from windowed transfers (see
+// applyTransferDeltas in db.ts, which only applies deltas for rows actually
+// inserted, so a retried range never double applies). hydration is authoritative
+// and idempotent (delete then replay), so re-hydrating corrects any drift.
+//
+// the scan does NOT start at block 1. the deployment block is the floor of a
+// token's transfer history, so we start there:
+//   1. contracts.creation_block, already indexed for every in-window deployment
+//      (free), else
+//   2. an eth_getCode binary search (~log2(head) calls) for tokens deployed below
+//      the window floor.
+// this turns a recent memecoin's hydration from ~1000 empty-history getLogs into
+// a handful. the ranges are then fetched CONCURRENTLY (delta accumulation is
+// order-independent), and several tokens hydrate in parallel, so one pathological
+// token (a genesis-era, millions-of-transfers token like WETH) cannot block the
+// queue — the reason nothing was ever written under MODE=both.
 //
 // the zero address is stored as a real row (mint and burn) and excluded from
 // holder counts and top-holder lists at read time.
@@ -16,8 +27,8 @@
 import { tokenLane } from "./chain.js";
 import { sql, insertBatch, ZERO_ADDRESS } from "./db.js";
 
-// holders share the "tokens" rpc lane with the token metadata worker.
-const { getHead, getLogs } = tokenLane;
+// holders share the dedicated "tokens" rpc lane with the token metadata worker.
+const { getHead, getLogs, rpc } = tokenLane;
 import { decodeTransferLog, TRANSFER_TOPIC, type Row } from "./transform.js";
 import { log } from "./log.js";
 
@@ -25,8 +36,44 @@ const LOG_CHUNK = Number(process.env.LOG_CHUNK ?? 10_000);
 const EAGER_TOP_N = Number(process.env.EAGER_TOP_N ?? 25);
 const HOLDERS_IDLE_MS = Number(process.env.HOLDERS_IDLE_MS ?? 4000);
 const TOP_HOLDERS_LIMIT = Number(process.env.TOP_HOLDERS_LIMIT ?? 100);
+// concurrent getLogs windows in flight per token. paced by the token lane's own
+// rate limiter, so this fills the dedicated budget rather than exceeding it.
+const HYDRATE_CONCURRENCY = Number(process.env.HYDRATE_CONCURRENCY ?? 12);
+// tokens hydrated in parallel. several slots mean one pathological token (a
+// genesis-era, millions-of-transfers token like WETH, whose getLogs are
+// CU-heavy) grinds in one slot without blocking the cheap tokens draining through
+// the others — the reason a single-threaded worker wrote nothing.
+const HYDRATION_WORKERS = Number(process.env.HYDRATION_WORKERS ?? 4);
+// reclaim a token stuck in 'hydrating' (a crashed/killed worker) after this long,
+// so it is retried instead of orphaned forever.
+const HYDRATION_STALE_MIN = Number(process.env.HYDRATION_STALE_MIN ?? 20);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const toHexBlock = (n: number): `0x${string}` => `0x${n.toString(16)}`;
+
+// smallest block at which the contract has code, via binary search over eth_getCode
+// (archive). the deployment block is a safe lower bound for the transfer history:
+// no Transfer can predate the code. ~log2(head) calls, negligible next to the
+// getLogs scan it saves. returns 1 if code already exists at block 1.
+async function findDeploymentBlock(address: string, head: number): Promise<number> {
+  const hasCode = async (b: number): Promise<boolean> => {
+    const code = await rpc<string>("eth_getCode", [address, toHexBlock(b)]);
+    return code != null && code !== "0x";
+  };
+  if (await hasCode(1)) return 1;
+  // no code even at head (self-destructed or never a contract): nothing to gain,
+  // fall back to a full scan from 1 rather than skip history.
+  if (!(await hasCode(head))) return 1;
+  let lo = 1;
+  let hi = head;
+  while (lo + 1 < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (await hasCode(mid)) hi = mid;
+    else lo = mid;
+  }
+  return hi;
+}
 
 // enqueue a token for hydration and make sure a tokens row exists. safe to call
 // on every page request: it never blocks and never re-queues a done token.
@@ -55,51 +102,70 @@ function applyDelta(r: Replay, holder: string, amount: bigint, block: number): v
   if (prev == null || block > prev) r.lastBlock.set(holder, block);
 }
 
-// pull and replay every Transfer log for one token over [from, to], adapting the
-// chunk size down on provider errors and back up on success.
+// fetch one [lo, hi] window's Transfer logs and fold them into the replay. on a
+// provider range/size error, split the window and recurse down to a single block.
+// the fold is synchronous (no await between reads and writes of r's maps), so
+// concurrent windows never race even though js runs them interleaved.
+async function replayWindow(
+  address: string,
+  lo: number,
+  hi: number,
+  r: Replay,
+): Promise<void> {
+  let logs;
+  try {
+    logs = await getLogs({ address, fromBlock: lo, toBlock: hi, topics: [TRANSFER_TOPIC] });
+  } catch (err) {
+    // eth_getLogs is capped by block range (this chain: 10000) and sometimes by
+    // result count; shrink the window and retry, all the way to a single block.
+    if (hi > lo) {
+      const mid = Math.floor((lo + hi) / 2);
+      await replayWindow(address, lo, mid, r);
+      await replayWindow(address, mid + 1, hi, r);
+      return;
+    }
+    throw err;
+  }
+  for (const lg of logs) {
+    const d = decodeTransferLog(lg.topics, lg.data);
+    if (!d) continue;
+    const block = Number(BigInt(lg.blockNumber));
+    r.transferCount += 1;
+    if (r.firstBlock == null || block < r.firstBlock) r.firstBlock = block;
+    const amount = d.tokenType === "erc721" ? 1n : BigInt(d.value ?? "0");
+    if (amount !== 0n) {
+      applyDelta(r, d.from, -amount, block);
+      applyDelta(r, d.to, amount, block);
+    }
+  }
+}
+
+// replay every Transfer over [from, to], fetching fixed LOG_CHUNK-block windows
+// CONCURRENTLY. delta accumulation is order-independent (final balance is a sum,
+// first/last block a min/max), so windows may complete in any order. the token
+// lane's own rate limiter paces the fan-out, so concurrency fills the dedicated
+// budget instead of stalling one 600ms call at a time.
 async function replayRange(
   address: string,
   from: number,
   to: number,
   r: Replay,
 ): Promise<void> {
-  let cursor = from;
-  let chunk = LOG_CHUNK;
-  while (cursor <= to) {
-    const end = Math.min(cursor + chunk - 1, to);
-    let logs;
-    try {
-      logs = await getLogs({
-        address,
-        fromBlock: cursor,
-        toBlock: end,
-        topics: [TRANSFER_TOPIC],
-      });
-    } catch (err) {
-      // providers cap eth_getLogs by result count (this chain: 10000 logs) and
-      // sometimes by range, so shrink the block window and retry. keep halving
-      // all the way to a single block, since the cap is on results not range.
-      if (chunk > 1) {
-        chunk = Math.max(1, Math.floor(chunk / 2));
-        continue;
-      }
-      throw err;
-    }
-    for (const lg of logs) {
-      const d = decodeTransferLog(lg.topics, lg.data);
-      if (!d) continue;
-      const block = Number(BigInt(lg.blockNumber));
-      r.transferCount += 1;
-      if (r.firstBlock == null || block < r.firstBlock) r.firstBlock = block;
-      const amount = d.tokenType === "erc721" ? 1n : BigInt(d.value ?? "0");
-      if (amount !== 0n) {
-        applyDelta(r, d.from, -amount, block);
-        applyDelta(r, d.to, amount, block);
-      }
-    }
-    cursor = end + 1;
-    if (chunk < LOG_CHUNK) chunk = Math.min(LOG_CHUNK, chunk * 2);
+  if (from > to) return;
+  const windows: Array<[number, number]> = [];
+  for (let c = from; c <= to; c += LOG_CHUNK) {
+    windows.push([c, Math.min(c + LOG_CHUNK - 1, to)]);
   }
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < windows.length) {
+      const [lo, hi] = windows[next++]!;
+      await replayWindow(address, lo, hi, r);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(HYDRATE_CONCURRENCY, windows.length) }, worker),
+  );
 }
 
 export async function hydrateToken(address: string): Promise<void> {
@@ -117,14 +183,19 @@ export async function hydrateToken(address: string): Promise<void> {
       transferCount: 0,
       firstBlock: null,
     };
-    // start at the token's known deployment block when we have it, so we do not
-    // scan empty history below it. falls back to block 1 otherwise.
+    // the deployment block is the floor of the transfer history. prefer the
+    // indexed creation_block (in-window deploys, free); otherwise binary search
+    // eth_getCode. this is what stops every pre-window token scanning ~1000 empty
+    // chunks from block 1.
+    let head = await getHead();
     const [c] = await sql<{ creation_block: string | null }[]>`
       select creation_block from contracts where address = ${a}
     `;
-    const start = c?.creation_block != null ? Math.max(1, Number(c.creation_block)) : 1;
-
-    let head = await getHead();
+    const start =
+      c?.creation_block != null
+        ? Math.max(1, Number(c.creation_block))
+        : await findDeploymentBlock(a, head);
+    log.info(`hydrating ${a} from block ${start} (head ${head})`);
     await replayRange(a, start, head, r);
     // one reconcile pass to shrink the gap opened while we were reading.
     const head2 = await getHead();
@@ -245,39 +316,90 @@ async function eagerEnqueue(): Promise<void> {
   for (const r of rows) await requestHydration(r.token_address);
 }
 
-async function nextPending(): Promise<string | null> {
+// atomically claim the oldest pending token: pick it FOR UPDATE SKIP LOCKED and
+// flip it to 'hydrating' in one statement, so parallel hydration workers never
+// grab the same token.
+async function claimNext(): Promise<string | null> {
   const rows = await sql<{ token_address: string }[]>`
-    select token_address from token_hydration
-     where status = 'pending' order by requested_at limit 1
+    update token_hydration
+       set status = 'hydrating', started_at = now()
+     where token_address = (
+       select token_address from token_hydration
+        where status = 'pending'
+        order by requested_at
+        for update skip locked
+        limit 1
+     )
+     returning token_address
   `;
   return rows[0]?.token_address ?? null;
 }
 
+// reclaim tokens left 'hydrating' by a crashed or killed worker: claimNext only
+// picks 'pending', so without this an interrupted hydration is orphaned forever
+// (the exact state WETH/USDG were found in). a running slot is busy inside
+// hydrateToken between claims, so this only ever touches a PREVIOUS worker's
+// leftovers, never an in-flight token.
+async function reclaimStale(): Promise<void> {
+  const reclaimed = await sql`
+    update token_hydration set status = 'pending'
+     where status = 'hydrating'
+       and started_at < now() - ${`${HYDRATION_STALE_MIN} minutes`}::interval
+    returning token_address
+  `;
+  if (reclaimed.length > 0) {
+    log.warn(`reclaimed ${reclaimed.length} stale hydrating token(s) back to pending`);
+  }
+}
+
 export async function runHolders(stopped: () => boolean = () => false): Promise<void> {
-  log.info(`holders worker started, eager top ${EAGER_TOP_N}`);
-  while (!stopped()) {
-    try {
-      await eagerEnqueue();
-      const next = await nextPending();
-      if (next) {
-        await hydrateToken(next);
-        continue;
+  log.info(
+    `holders worker started, eager top ${EAGER_TOP_N}, ${HYDRATION_WORKERS} hydration slots x ${HYDRATE_CONCURRENCY} windows`,
+  );
+
+  // coordinator: keep the queue fed, reclaim orphaned 'hydrating' rows, and
+  // refresh the stalest hydrated token's shares. it never hydrates itself.
+  const coordinator = async (): Promise<void> => {
+    while (!stopped()) {
+      try {
+        await reclaimStale();
+        await eagerEnqueue();
+        const [stale] = await sql<{ token_address: string }[]>`
+          select ts.token_address from token_stats ts
+          join token_hydration th on th.token_address = ts.token_address
+          where th.hydrated_at_block is not null
+          order by ts.updated_at asc limit 1
+        `;
+        if (stale) await refreshStats(stale.token_address);
+      } catch (err) {
+        log.error(`holders coordinator error: ${String(err)}`);
       }
-      // nothing to hydrate: refresh the stalest hydrated token so shares track
-      // incremental balance changes, then idle.
-      const [stale] = await sql<{ token_address: string }[]>`
-        select ts.token_address from token_stats ts
-        join token_hydration th on th.token_address = ts.token_address
-        where th.hydrated_at_block is not null
-        order by ts.updated_at asc limit 1
-      `;
-      if (stale) await refreshStats(stale.token_address);
-      await sleep(HOLDERS_IDLE_MS);
-    } catch (err) {
-      log.error(`holders loop error: ${String(err)}`);
       await sleep(HOLDERS_IDLE_MS);
     }
-  }
+  };
+
+  // a hydration slot: claim one token, hydrate it, repeat. several slots run in
+  // parallel so a single heavy token cannot block the whole queue.
+  const slot = async (): Promise<void> => {
+    while (!stopped()) {
+      let token: string | null = null;
+      try {
+        token = await claimNext();
+      } catch (err) {
+        log.error(`holders claim error: ${String(err)}`);
+      }
+      if (!token) {
+        await sleep(HOLDERS_IDLE_MS);
+        continue;
+      }
+      await hydrateToken(token);
+    }
+  };
+
+  await Promise.all([
+    coordinator(),
+    ...Array.from({ length: HYDRATION_WORKERS }, () => slot()),
+  ]);
   log.info("holders worker stopped");
 }
 

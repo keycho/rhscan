@@ -190,8 +190,20 @@ class RateLimiter {
   }
 }
 
-// one global budget for the whole api key, shared across every lane.
-const limiter = new RateLimiter(RPC_RATE_LIMIT, RPC_RATE_BURST);
+// the global budget, shared across the backfill, tail and cold lanes. the token
+// lane (holder hydration + metadata + verify) gets its OWN budget below so a
+// running backfill can never starve hydration — under MODE=both the backfill's
+// high-concurrency call stream monopolised this one queue and the holders worker
+// never completed a single token, so token_stats and token_balances stayed empty.
+const globalLimiter = new RateLimiter(RPC_RATE_LIMIT, RPC_RATE_BURST);
+
+// dedicated budget for the token lane, independent of the global one. kept modest
+// so global + token together stay near alchemy's ceiling; the backoff absorbs the
+// occasional overlap 429. this is the fix that lets hydration make progress while
+// the backfill runs.
+const RPC_RATE_LIMIT_TOKENS = Number(process.env.RPC_RATE_LIMIT_TOKENS ?? 15);
+const RPC_RATE_BURST_TOKENS = Number(process.env.RPC_RATE_BURST_TOKENS ?? 8);
+const tokenLimiter = new RateLimiter(RPC_RATE_LIMIT_TOKENS, RPC_RATE_BURST_TOKENS);
 
 export interface RpcLog {
   address: `0x${string}`;
@@ -207,7 +219,7 @@ export interface RpcLog {
 // independent: backfill's burst never merges into tail's or the token workers'
 // batches, and one lane backing off on 429s does not stall another. observed
 // 429s are logged with the lane label so the culprit is obvious.
-export function createRpcLane(label: string) {
+export function createRpcLane(label: string, limiter: RateLimiter = globalLimiter) {
   const client = createPublicClient({
     chain: rhChain,
     transport: http(RPC_URL, {
@@ -303,9 +315,9 @@ export type RpcLane = ReturnType<typeof createRpcLane>;
 // one lane per worker class, so no two share a rate-limit budget or batch queue.
 export const backfillLane = createRpcLane("backfill");
 export const tailLane = createRpcLane("tail");
-// the token metadata worker, holder hydration, and verify:balances all run in
-// the same "tokens" budget.
-export const tokenLane = createRpcLane("tokens");
+// the token metadata worker, holder hydration, and verify:balances share the
+// "tokens" budget — a DEDICATED limiter, so the backfill can never starve them.
+export const tokenLane = createRpcLane("tokens", tokenLimiter);
 // the on-demand cold-path resolver and one-off cli reads.
 export const coldLane = createRpcLane("cold");
 
