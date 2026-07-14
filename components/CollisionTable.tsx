@@ -54,12 +54,23 @@ export function CollisionTable({ tokens }: { tokens: TokenCard[] }) {
                 {t.deployer ? <AddrLink address={t.deployer} /> : <span className="text-faint">-</span>}
               </td>
               <td className="px-4 py-2.5 text-right mono">
-                {t.holderCount != null ? formatNumber(t.holderCount) : "-"}
+                {t.holderCount != null ? formatNumber(t.holderCount) : <span className="text-faint">-</span>}
               </td>
               <td className="px-4 py-2.5 text-right mono">
-                {t.transferCount != null ? formatNumber(t.transferCount) : "-"}
+                {t.transferCount != null ? (
+                  formatNumber(t.transferCount)
+                ) : t.windowedTransfers != null && t.windowedTransfers > 0 ? (
+                  <span title="transfers seen in the indexed window (all-time not yet hydrated)">
+                    {formatNumber(t.windowedTransfers)}
+                    <span className="ml-0.5 text-faint">·win</span>
+                  </span>
+                ) : (
+                  <span className="text-faint">-</span>
+                )}
               </td>
-              <td className="px-4 py-2.5 text-right mono">{formatShare(t.top10Share)}</td>
+              <td className="px-4 py-2.5 text-right mono">
+                {t.top10Share != null ? formatShare(t.top10Share) : <span className="text-faint">-</span>}
+              </td>
             </tr>
           ))}
         </tbody>

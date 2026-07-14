@@ -25,6 +25,12 @@ export interface TokenCard {
   creationBlock: number | null;
   creationTx: string | null;
   creationTime: string | null;
+  // transfers seen inside the indexed window. a live signal that is present even
+  // before a token is hydrated (transferCount, holderCount and top10Share all
+  // come from hydration and are null until then). on a windowed index the hot and
+  // colliding tokens are usually deployed before the window, so without this the
+  // collision cards would be all dashes on first view.
+  windowedTransfers: number | null;
 }
 
 const cardColumns = sql`
@@ -68,7 +74,30 @@ function toCard(r: CardRow): TokenCard {
     creationBlock: r.creation_block == null ? null : Number(r.creation_block),
     creationTx: r.creation_tx,
     creationTime: r.creation_time == null ? null : new Date(r.creation_time).toISOString(),
+    windowedTransfers: null,
   };
+}
+
+// attach the windowed transfer count for each card (one grouped read over the
+// bounded card set), and optionally re-rank by the best activity signal we have:
+// all-time transfer count when hydrated, else windowed. `resort` is off for the
+// new-token feed, which must stay newest-first.
+async function attachWindowed(cards: TokenCard[], resort = true): Promise<TokenCard[]> {
+  if (cards.length === 0) return cards;
+  const addrs = cards.map((c) => c.address);
+  const rows = await sql<{ token_address: string; c: string }[]>`
+    select token_address, count(*)::bigint as c
+      from token_transfers
+     where token_address in ${sql(addrs)}
+     group by token_address
+  `;
+  const counts = new Map(rows.map((r) => [r.token_address, Number(r.c)]));
+  const out = cards.map((c) => ({ ...c, windowedTransfers: counts.get(c.address) ?? 0 }));
+  if (resort) {
+    const rank = (c: TokenCard) => c.transferCount ?? c.windowedTransfers ?? 0;
+    out.sort((a, b) => rank(b) - rank(a) || (b.holderCount ?? 0) - (a.holderCount ?? 0));
+  }
+  return out;
 }
 
 // every token whose name OR symbol matches `term` (case-insensitive, exact),
@@ -89,7 +118,7 @@ export async function tokenCollisions(term: string, limit = 50): Promise<TokenCa
               c.creation_block asc nulls last
      limit ${limit}
   `;
-  return rows.map(toCard);
+  return attachWindowed(rows.map(toCard));
 }
 
 // other tokens that share this token's name or symbol (excluding itself). drives
@@ -119,7 +148,7 @@ export async function collidingTokens(
      order by ts.transfer_count desc nulls last, ts.holder_count desc nulls last
      limit ${limit}
   `;
-  return rows.map(toCard);
+  return attachWindowed(rows.map(toCard));
 }
 
 // is this address a token we hold metadata for? used to route a 40-hex search to
@@ -192,7 +221,7 @@ export async function topTokens(limit = 50): Promise<TokenCard[]> {
      order by ts.transfer_count desc nulls last, ts.holder_count desc nulls last
      limit ${limit}
   `;
-  return rows.map(toCard);
+  return attachWindowed(rows.map(toCard));
 }
 
 // new-token feed: contract deployments newest first, metadata and stats joined. a
@@ -215,7 +244,7 @@ export async function newTokenFeed(limit = 50): Promise<TokenCard[]> {
      order by c.creation_block desc
      limit ${limit}
   `;
-  return rows.map(toCard);
+  return attachWindowed(rows.map(toCard), false);
 }
 
 export interface TokenMeta {
