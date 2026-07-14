@@ -16,12 +16,15 @@ if (!url) {
   throw new Error("DATABASE_URL is not set, see .env.example");
 }
 
-const DB_MAX = Number(
-  process.env.DB_POOL_MAX ?? Number(process.env.CONCURRENCY ?? 50) + 8,
-);
+// one shared pool for the whole process. every worker (backfill, tail, tokens,
+// holders, pruner, partition maintainer) and the web read helpers import this
+// same `sql`, so the process opens at most PG_POOL_MAX connections total, not a
+// pool per worker. keep it well under supabase's session-pooler client cap (15):
+// against the pooler set PG_POOL_MAX=5. default 10.
+const PG_POOL_MAX = Number(process.env.PG_POOL_MAX ?? 10);
 
 export const sql = postgres(url, {
-  max: DB_MAX,
+  max: PG_POOL_MAX,
   idle_timeout: 30,
   connect_timeout: 15,
   onnotice: () => {},
