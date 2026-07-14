@@ -22,7 +22,7 @@ export function Wordmark() {
       className="mono flex flex-none items-center gap-[1px] text-[18px] font-semibold tracking-[-0.02em] no-underline hover:no-underline"
     >
       <span className="font-medium text-green">[</span>
-      <span className="text-text">rhscan</span>
+      <span className="text-text">hoodscan</span>
       <span className="font-medium text-green">]</span>
     </Link>
   );

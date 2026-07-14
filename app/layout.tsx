@@ -8,8 +8,8 @@ import { getNetworkStats } from "@/src/web/stats";
 
 export const metadata: Metadata = {
   title: {
-    default: "rhscan — robinhood chain explorer",
-    template: "%s — rhscan",
+    default: "hoodscan — robinhood chain explorer",
+    template: "%s — hoodscan",
   },
   description:
     "a fast, information-dense block explorer for robinhood chain (chain 4663). blocks, transactions, addresses, tokens, and token name-collision disambiguation. indexes a rolling recent window, and says so.",
