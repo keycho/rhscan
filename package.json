@@ -25,12 +25,12 @@
     "explain": "psql \"$DATABASE_URL\" -f docs/explain.sql"
   },
   "dependencies": {
-    "next": "15.5.4",
+    "next": "15.5.9",
     "pino": "10.3.1",
     "postgres": "3.4.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "viem": "2.55.2"
+    "viem": "2.55.1"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
