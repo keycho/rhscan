@@ -24,11 +24,27 @@ export const PARTITIONED_TABLES = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// postgres error codes for the concurrent-create race, see below.
+const DUPLICATE_TABLE = "42P07";
+const UNIQUE_VIOLATION = "23505";
+
 export function partitionIndex(block: number): number {
   return Math.floor(block / PARTITION_SIZE);
 }
 
-// create partitions for every index covering [fromBlock, toBlock], idempotent.
+// create partitions for every index covering [fromBlock, toBlock], idempotent
+// and safe to run concurrently.
+//
+// `create table if not exists ... partition of` is NOT concurrency-safe on its
+// own: two callers (backfill and the partition maintainer both run under
+// MODE=both and MODE=backfill, and their index ranges overlap near the head) can
+// pass the IF NOT EXISTS check at the same instant, and the loser then fails with
+// 42P07 "relation already exists" (or a 23505 on pg_class). we do NOT wrap the
+// creates in one transaction: `create table ... partition of` takes an ACCESS
+// EXCLUSIVE lock on the parent, and holding five of those across a transaction
+// stalls every concurrent writer on the window tables. instead each create is its
+// own autocommit statement (lock taken and released immediately) and we simply
+// swallow the duplicate-create race — the partition existing is the goal state.
 export async function ensurePartitions(
   fromBlock: number,
   toBlock: number,
@@ -39,10 +55,15 @@ export async function ensurePartitions(
     const from = idx * PARTITION_SIZE;
     const to = (idx + 1) * PARTITION_SIZE;
     for (const parent of PARTITIONED_TABLES) {
-      await sql.unsafe(
-        `create table if not exists ${parent}_p${idx}
-           partition of ${parent} for values from (${from}) to (${to})`,
-      );
+      try {
+        await sql.unsafe(
+          `create table if not exists ${parent}_p${idx}
+             partition of ${parent} for values from (${from}) to (${to})`,
+        );
+      } catch (err) {
+        const code = (err as { code?: string }).code;
+        if (code !== DUPLICATE_TABLE && code !== UNIQUE_VIOLATION) throw err;
+      }
     }
   }
 }
