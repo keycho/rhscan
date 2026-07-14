@@ -2,19 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* hoodscan design tokens — light, cool near-white, forest-green accent.
+   amber is reserved strictly for indexing-honesty signals (window/rpc/gini).
+
+   each colour is stored twice: a solid hex (for direct references in SVG fills
+   and inline styles) and an "-rgb" channel triplet (so tailwind's /opacity
+   modifiers resolve to real rgb(... / a) values). keep the two in sync. */
 :root {
-  --bg: #0a0d12;
-  --panel: #111620;
-  --panel-2: #161c28;
-  --border: #232b39;
-  --text: #d8dee9;
-  --muted: #8b95a7;
-  --faint: #5b6474;
-  --accent: #6ea8fe;
-  --accent-hover: #a6c8ff;
-  --ok: #3fb950;
-  --bad: #f85149;
-  --warn: #d8a531;
+  --bg: #f5f6f7;
+  --bg-rgb: 245 246 247; /* page background (cool near-white) */
+  --surface: #ffffff;
+  --surface-rgb: 255 255 255; /* cards, header, rows */
+  --utility: #eceef0;
+  --utility-rgb: 236 238 240; /* top utility strip */
+  --subtle: #f7f8fa;
+  --subtle-rgb: 247 248 250; /* table header row, stats footer strip */
+  --hover: #f6f7f9;
+  --hover-rgb: 246 247 249; /* row hover */
+  --masthead: #07301d;
+  --masthead-rgb: 7 48 29; /* dark forest-green hero band */
+
+  --border-strong: #cfd2d8;
+  --border-strong-rgb: 207 210 216; /* card outlines */
+  --border: #d4d7dd;
+  --border-rgb: 212 215 221; /* header/utility dividers, pills, table head */
+  --border-hair: #edeef1;
+  --border-hair-rgb: 237 238 241; /* in-card row dividers */
+  --border-footer: #e2e4e8;
+  --border-footer-rgb: 226 228 232; /* footer hairline */
+
+  --text: #16181d;
+  --text-rgb: 22 24 29; /* primary text and values */
+  --secondary: #3f434b;
+  --secondary-rgb: 63 67 75; /* secondary values */
+  --tertiary: #4b4f57;
+  --tertiary-rgb: 75 79 87; /* pill text, chain id */
+  --label: #787d86;
+  --label-rgb: 120 125 134; /* labels, section subtitles */
+  --muted: #9aa0a8;
+  --muted-rgb: 154 160 168; /* timestamps, tertiary meta */
+
+  --green: #0c8f4f;
+  --green-rgb: 12 143 79; /* links, active nav, positive, live, bars, buttons */
+  --green-hover: #0a7a43;
+  --green-hover-rgb: 10 122 67;
+  --green-dim: #5fbf8b;
+  --green-dim-rgb: 95 191 139; /* masthead eyebrow on dark */
+  --negative: #c4453a;
+  --negative-rgb: 196 69 58; /* negative % change only */
+  --amber: #9a6a24;
+  --amber-rgb: 154 106 36; /* honesty affordances only */
+
+  /* font stacks — the sans/mono contrast carries the whole design: labels in
+     Inter, every hex/address/hash/number/price/% in IBM Plex Mono. loaded via a
+     stylesheet link in the document head. */
+  --font-inter: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-plex-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
 * {
@@ -31,31 +74,38 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: theme("fontFamily.sans");
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 a {
-  color: var(--accent);
+  color: var(--green);
   text-decoration: none;
 }
 a:hover {
-  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+::selection {
+  background: rgba(12, 143, 79, 0.16);
 }
 
 /* thin, unobtrusive scrollbars for the dense tables */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: #d2d5da transparent;
 }
 *::-webkit-scrollbar {
   height: 8px;
   width: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #d2d5da;
   border-radius: 4px;
 }
 
@@ -69,4 +119,18 @@ a:hover {
 .scroll-x {
   overflow-x: auto;
   max-width: 100%;
+}
+
+/* live dot pulse: opacity 1 -> .35 -> 1 over 1.8s */
+@keyframes hoodscan-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  animation: hoodscan-pulse 1.8s ease-in-out infinite;
 }

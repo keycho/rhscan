@@ -28,15 +28,17 @@ export function Tabs({
           <Link
             key={t.key}
             href={href}
-            className={`-mb-px border-b-2 px-3 py-2 text-[13px] ${
+            className={`-mb-px border-b-2 px-4 py-[9px] text-[13px] no-underline hover:no-underline ${
               on
-                ? "border-accent text-text"
-                : "border-transparent text-muted hover:text-text"
+                ? "border-green font-semibold text-green"
+                : "border-transparent font-medium text-label hover:text-text"
             }`}
           >
             {t.label}
             {t.count != null && (
-              <span className="ml-1.5 text-2xs text-faint">{formatNumber(t.count)}</span>
+              <span className={`ml-1.5 text-2xs ${on ? "text-green/70" : "text-muted"}`}>
+                {formatNumber(t.count)}
+              </span>
             )}
           </Link>
         );

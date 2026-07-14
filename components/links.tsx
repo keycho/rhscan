@@ -54,13 +54,14 @@ export function TokenLink({
   );
 }
 
-// in / out arrow tag for an address's transaction direction.
+// in / out arrow tag for an address's transaction direction. amber is reserved
+// for honesty signals, so "out" is neutral-bordered and "in" is green.
 export function DirectionTag({ direction }: { direction: string }) {
   const out = direction === "from";
   return (
     <span
       className={`inline-block w-9 rounded border px-1 py-0.5 text-center text-2xs font-medium leading-none ${
-        out ? "border-warn/40 bg-warn/10 text-warn" : "border-ok/40 bg-ok/10 text-ok"
+        out ? "border-border bg-surface text-tertiary" : "border-green/40 bg-green/10 text-green"
       }`}
     >
       {out ? "out" : "in"}

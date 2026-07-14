@@ -1,41 +1,61 @@
 import type { Metadata } from "next";
-import { Panel } from "@/components/primitives";
-import { SearchBox } from "@/components/SearchBox";
-import { CollisionTable } from "@/components/CollisionTable";
+import { Container, Panel } from "@/components/primitives";
+import { AmberDot } from "@/components/honesty";
+import { TokenTable } from "@/components/TokenTable";
 import { topTokens, newTokenFeed } from "@/src/web/tokens-web";
+import { loadWatermarks } from "@/src/web/cache";
+import { formatNumber } from "@/src/web/format";
 
 export const revalidate = 30;
 
 export const metadata: Metadata = {
   title: "tokens",
-  description: "most active and newly deployed tokens on robinhood chain.",
+  description:
+    "erc-20 token tracker for robinhood chain, ranked by real transfer activity across the indexed window — no sponsored placements.",
 };
 
 export default async function TokensPage() {
-  const [top, fresh] = await Promise.all([topTokens(50), newTokenFeed(50)]);
+  const [top, fresh, wm] = await Promise.all([
+    topTokens(30),
+    newTokenFeed(15),
+    loadWatermarks(),
+  ]);
+
+  const range =
+    wm.head != null
+      ? `blocks ${wm.windowFloor != null ? formatNumber(wm.windowFloor) : "?"} → ${formatNumber(wm.head)}`
+      : "";
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-lg font-semibold">tokens</h1>
-        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted">
-          most tokens on this chain are memecoins and agent tokens, and
-          impersonation is the norm: the same name and symbol recur across
-          unrelated contracts. search a name or symbol below to see every contract
-          that uses it, side by side, with deployment, deployer and concentration.
-        </p>
-        <div className="mt-3 max-w-2xl">
-          <SearchBox />
-        </div>
+    <Container className="pb-8 pt-6">
+      <div className="mb-1 flex flex-wrap items-baseline gap-[10px]">
+        <h1 className="text-[20px] font-semibold tracking-[-0.02em]">token tracker</h1>
+        <span className="mono text-[11.5px] text-label">erc-20 · robinhood chain</span>
       </div>
 
-      <Panel title="most active tokens" right={<span>by all-time transfer count</span>}>
-        <CollisionTable tokens={top} />
-      </Panel>
+      {/* honesty line replaces the usual sponsored ad row */}
+      <div className="my-[14px] flex flex-wrap items-center gap-2 border-y border-border-footer py-2">
+        <AmberDot />
+        <span className="text-[11.5px] text-label">
+          ranked by transfer activity across the indexed window — no sponsored placements.
+        </span>
+        {range && <span className="mono ml-auto text-[11px] text-muted">{range}</span>}
+      </div>
 
-      <Panel title="newly deployed" right={<span>newest contract deployments</span>}>
-        <CollisionTable tokens={fresh} />
+      {/* tracker */}
+      <section className="overflow-hidden rounded-lg border border-border-strong bg-surface">
+        <div className="flex flex-wrap items-baseline gap-2 border-b border-border-hair px-4 py-[13px]">
+          <span className="text-[13px] text-text">
+            showing top <span className="mono font-semibold">{formatNumber(top.length)}</span> tokens
+          </span>
+          <span className="text-[11.5px] text-muted">· by all-time transfer activity</span>
+        </div>
+        <TokenTable tokens={top} />
+      </section>
+
+      <Panel title="newly deployed" right={<span>newest contract deployments</span>} className="mt-[14px]">
+        <TokenTable tokens={fresh} />
       </Panel>
-    </div>
+    </Container>
   );
 }

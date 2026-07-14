@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Panel, Field, Muted } from "@/components/primitives";
+import { Container, Panel, Field, Muted } from "@/components/primitives";
 import { AddrLink, BlockLink } from "@/components/links";
 import { CopyButton } from "@/components/CopyButton";
 import { TimeAgo } from "@/components/TimeAgo";
@@ -58,7 +58,7 @@ export default async function TxPage({ params }: { params: Promise<{ hash: strin
   const created = tx.contractAddress;
 
   return (
-    <div className="space-y-4">
+    <Container className="space-y-4 py-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-semibold">transaction</h1>
         <StatusBadge status={tx.status} />
@@ -181,6 +181,6 @@ export default async function TxPage({ params }: { params: Promise<{ hash: strin
           <TxLogsTable logs={res.logs} />
         </Panel>
       )}
-    </div>
+    </Container>
   );
 }

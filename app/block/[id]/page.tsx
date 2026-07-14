@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Panel, Field } from "@/components/primitives";
+import { Container, Panel, Field } from "@/components/primitives";
 import { BlockTxTable } from "@/components/tables";
 import { AddrLink, TxLink } from "@/components/links";
 import { CopyButton } from "@/components/CopyButton";
@@ -48,7 +48,7 @@ export default async function BlockPage({ params }: { params: Promise<{ id: stri
   const next = wm.head == null || b.number < wm.head ? `/block/${b.number + 1}` : null;
 
   return (
-    <div className="space-y-4">
+    <Container className="space-y-4 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-semibold">block {formatNumber(b.number)}</h1>
@@ -112,6 +112,6 @@ export default async function BlockPage({ params }: { params: Promise<{ id: stri
       <Panel title={`transactions (${formatNumber(result.transactions.length)})`}>
         <BlockTxTable txs={result.transactions} />
       </Panel>
-    </div>
+    </Container>
   );
 }
