@@ -81,8 +81,14 @@ async function reclaimStale(): Promise<void> {
 }
 
 // claim the highest pending range so recent blocks land first.
+//
+// from_block/to_block/id are bigint columns, which postgres.js returns as
+// strings to avoid precision loss. block numbers are far below Number.MAX_SAFE_
+// INTEGER, so coerce to number here: the Range type promises numbers and
+// processRange does arithmetic on them (`n += 1`) — on a string that silently
+// becomes concatenation and an unbounded loop.
 async function claimRange(): Promise<Range | null> {
-  const rows = await sql<Range[]>`
+  const rows = await sql<Record<string, string>[]>`
     update backfill_ranges
        set status = 'claimed', claimed_at = now()
      where id = (
@@ -94,7 +100,14 @@ async function claimRange(): Promise<Range | null> {
      )
     returning id, from_block, to_block, attempts
   `;
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    from_block: Number(row.from_block),
+    to_block: Number(row.to_block),
+    attempts: Number(row.attempts),
+  };
 }
 
 async function processRange(range: Range): Promise<void> {
