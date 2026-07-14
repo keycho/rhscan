@@ -24,7 +24,9 @@ import {
 } from "@/src/web/format";
 import { methodSignature } from "@/src/web/methods";
 
-export const revalidate = 5;
+// db-backed: render at request time so `next build` runs no query.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const isHash = (s: string) => /^0x[0-9a-fA-F]{64}$/.test(s);
 

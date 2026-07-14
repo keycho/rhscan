@@ -13,7 +13,9 @@ import { addressHoldings, isKnownToken } from "@/src/web/tokens-web";
 import { getEthUsd } from "@/src/web/price";
 import { formatEth, formatNumber, formatUnits, formatUsd, shortAddr, weiToUsd } from "@/src/web/format";
 
-export const revalidate = 5;
+// db-backed: render at request time so `next build` runs no query.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const isAddr = (s: string) => /^0x[0-9a-fA-F]{40}$/.test(s);
 
