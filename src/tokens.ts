@@ -7,8 +7,10 @@
 // retrying them.
 
 import { erc20Abi } from "viem";
-import { client, MULTICALL3_ADDRESS } from "./chain.js";
+import { tokenLane, MULTICALL3_ADDRESS } from "./chain.js";
 import { sql } from "./db.js";
+
+const { client } = tokenLane;
 import { log } from "./log.js";
 
 const TOKENS_BATCH = Number(process.env.TOKENS_BATCH ?? 50);

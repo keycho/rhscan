@@ -13,8 +13,11 @@
 // the zero address is stored as a real row (mint and burn) and excluded from
 // holder counts and top-holder lists at read time.
 
-import { getHead, getLogs } from "./chain.js";
+import { tokenLane } from "./chain.js";
 import { sql, insertBatch, ZERO_ADDRESS } from "./db.js";
+
+// holders share the "tokens" rpc lane with the token metadata worker.
+const { getHead, getLogs } = tokenLane;
 import { decodeTransferLog, TRANSFER_TOPIC, type Row } from "./transform.js";
 import { log } from "./log.js";
 

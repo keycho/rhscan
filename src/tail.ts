@@ -7,11 +7,14 @@
 // row above it across all tables, rewind, and resume. an unhandled reorg is
 // silently corrupt data forever, which is worse than being slow.
 
-import { getBlockByNumber, getBlockReceipts, getHead } from "./chain.js";
+import { tailLane } from "./chain.js";
 import { sql, writeBlocks, type Executor } from "./db.js";
 import { transformBlock } from "./transform.js";
 import { log } from "./log.js";
 import { ensurePartitions } from "./partitions.js";
+
+// tail's own rpc lane, independent of backfill and the token workers.
+const { getBlockByNumber, getBlockReceipts, getHead } = tailLane;
 
 const POLL_MS = Number(process.env.POLL_MS ?? 1000);
 const TAIL_BATCH = Number(process.env.TAIL_BATCH ?? 100);

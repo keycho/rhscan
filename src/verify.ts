@@ -5,8 +5,10 @@
 // the numbers proven, not assumed.
 
 import { erc20Abi } from "viem";
-import { client, MULTICALL3_ADDRESS } from "./chain.js";
+import { tokenLane, MULTICALL3_ADDRESS } from "./chain.js";
 import { sql, closeDb } from "./db.js";
+
+const { client } = tokenLane;
 import { getTopHolders, hydrateToken } from "./holders.js";
 import { log } from "./log.js";
 

@@ -12,7 +12,7 @@
 //                   which every range is done. this is what "fully indexed from
 //                   here up" means, and the number the ui should trust.
 
-import { getBlockByNumber, getBlockReceipts, getHead } from "./chain.js";
+import { backfillLane } from "./chain.js";
 import { sql, writeBlocks } from "./db.js";
 import { transformBlock } from "./transform.js";
 import { log } from "./log.js";
@@ -24,6 +24,10 @@ import {
   BACKFILL_FLOOR_KEY,
 } from "./window.js";
 import { ensurePartitions } from "./partitions.js";
+
+// backfill's own rpc lane, so its bursts never share a batch queue or rate-limit
+// budget with tail or the token workers.
+const { getBlockByNumber, getBlockReceipts, getHead } = backfillLane;
 
 const RANGE_SIZE = Number(process.env.RANGE_SIZE ?? 200);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 50);
