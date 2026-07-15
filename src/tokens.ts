@@ -46,31 +46,23 @@ interface Unknown {
   token_type: string | null;
 }
 
-// tokens needing metadata: existing rows whose fields are still null (the
-// backfill of pre-existing "unnamed" tokens), plus token_transfers addresses
-// with no row yet (newly discovered tokens). existing rows are attempted once
-// (metadata_fetched_at null) unless TOKENS_FORCE_REFRESH re-opens the whole set.
+// tokens needing metadata: rows whose name/symbol/decimals/total_supply are still
+// null and that have not been attempted (metadata_fetched_at null), unless
+// TOKENS_FORCE_REFRESH re-opens the whole set. every windowed token already has a
+// row — new tokens are seeded at write time (see writeBlocks) — so this no longer
+// scans token_transfers to find new tokens; it reads only the small
+// tokens_missing_metadata_idx (migration 0006) whose partial condition matches
+// this predicate exactly, so the scan is bounded to the LIMIT and is empty (hence
+// instant) once the backlog drains. the non-force predicate MUST stay identical to
+// the index's condition for the planner to use it.
 async function nextUnknownTokens(): Promise<Unknown[]> {
-  const attemptGate = TOKENS_FORCE_REFRESH ? sql`true` : sql`t.metadata_fetched_at is null`;
+  const attemptGate = TOKENS_FORCE_REFRESH ? sql`true` : sql`metadata_fetched_at is null`;
   return sql<Unknown[]>`
-    (
-      select t.address, t.token_type
-        from tokens t
-       where ${attemptGate}
-         and (t.name is null or t.symbol is null
-              or t.decimals is null or t.total_supply is null)
-       limit ${TOKENS_BATCH}
-    )
-    union all
-    (
-      select distinct on (tt.token_address)
-             tt.token_address as address, tt.token_type
-        from token_transfers tt
-        left join tokens t on t.address = tt.token_address
-       where t.address is null
-       limit ${TOKENS_BATCH}
-    )
-    limit ${TOKENS_BATCH}
+    select address, token_type
+      from tokens
+     where ${attemptGate}
+       and (name is null or symbol is null or decimals is null or total_supply is null)
+     limit ${TOKENS_BATCH}
   `;
 }
 

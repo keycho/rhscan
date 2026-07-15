@@ -230,6 +230,25 @@ const flat = <K extends keyof BlockRows>(blocks: readonly BlockRows[], k: K) =>
 
 // window write: partitioned tables + the hash->block_number maps, all in one
 // transaction. balance deltas are applied for the transfers actually inserted.
+// insert a bare tokens row (address + token_type) for each distinct token seen in
+// a batch of token_transfers. `on conflict do nothing` keeps any existing row, so
+// this never overwrites resolved metadata. this is what lets the metadata worker
+// discover new tokens without scanning token_transfers: every windowed token has
+// a row, and the worker reads only the small missing-metadata index.
+async function seedTokens(
+  exec: Executor,
+  transfers: readonly Record<string, unknown>[],
+): Promise<void> {
+  if (transfers.length === 0) return;
+  const seen = new Map<string, string | null>();
+  for (const t of transfers) {
+    const address = String(t.token_address);
+    if (!seen.has(address)) seen.set(address, (t.token_type as string | null) ?? null);
+  }
+  const rows = [...seen].map(([address, token_type]) => ({ address, token_type }));
+  await insertBatch(exec, "tokens", ["address", "token_type"], rows);
+}
+
 export async function writeBlocks(
   exec: Executor,
   blocks: readonly BlockRows[],
@@ -241,12 +260,20 @@ export async function writeBlocks(
   await insertBatch(exec, "blocks", COLUMNS.blocks, blks);
   await insertBatch(exec, "transactions", COLUMNS.transactions, txns);
   await insertBatch(exec, "logs", COLUMNS.logs, flat(blocks, "logs"));
+  const transfers = flat(blocks, "tokenTransfers");
   const insertedTransfers = await insertBatchReturning(
     exec,
     "token_transfers",
     COLUMNS.token_transfers,
-    flat(blocks, "tokenTransfers"),
+    transfers,
   );
+  // seed a bare tokens row (address + token_type, metadata null) for every token
+  // seen in this batch, so the metadata worker discovers new tokens from its small
+  // missing-metadata index instead of scanning all of token_transfers every tick.
+  // idempotent and non-destructive: on conflict it keeps the existing row, so a
+  // token whose metadata is already resolved is never touched. seeded from the
+  // full batch (not just inserted transfers) so a retry still seeds the token.
+  await seedTokens(exec, transfers);
   await insertBatch(exec, "address_transactions", COLUMNS.address_transactions, flat(blocks, "addressTxns"));
   await insertBatch(exec, "contracts", COLUMNS.contracts, flat(blocks, "contracts"));
 
