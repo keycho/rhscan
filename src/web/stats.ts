@@ -81,29 +81,38 @@ export async function getNetworkStats(): Promise<NetworkStats> {
   };
 }
 
-// transactions per day across the indexed window, for the home chart. the window
-// holds only a few days of chain, so this returns however many days are indexed;
-// the ui frames it against a 14-day axis and discloses the window floor. one
-// aggregate over the small `blocks` table; cache hard upstream.
+// transactions per day for the home chart. bounded by block_number, NOT by a
+// `timestamp >= now() - 14d` predicate: the window spans only a few days, so that
+// predicate matched nearly every row and forced a full seq scan of the ~1M-row
+// blocks table (partitions are by number, so a timestamp filter cannot prune).
+// bounding by number prunes to the most-recent partition(s) and, with the
+// covering index blocks_home_stats_idx (migration 0004), runs index-only. the ui
+// frames whatever days come back against a 14-day axis and discloses the window.
 export interface DayBucket {
   day: string; // yyyy-mm-dd (utc)
   txCount: number;
   blocks: number;
 }
 
-export async function txPerDay(days = 14): Promise<DayBucket[]> {
-  const rows = await sql<{ day: Date; txs: string; blks: string }[]>`
+// how many recent blocks the chart aggregates. one partition's worth by default,
+// so the query stays bounded and fast even before the covering index / vacuum are
+// in place. raise it (env) once blocks_home_stats_idx exists and blocks has been
+// vacuumed, to widen the chart back across the full window.
+const CHART_BLOCKS = Number(process.env.CHART_BLOCKS ?? 500_000);
+
+export async function txPerDay(): Promise<DayBucket[]> {
+  const rows = await sql<{ day: Date; txs: string | null; blks: string }[]>`
     select date_trunc('day', timestamp) as day,
            sum(tx_count) as txs,
            count(*) as blks
       from blocks
-     where timestamp >= (now() at time zone 'utc') - ${`${days} days`}::interval
+     where number > (select max(number) from blocks) - ${CHART_BLOCKS}
      group by 1
      order by 1
   `;
   return rows.map((r) => ({
     day: new Date(r.day).toISOString().slice(0, 10),
-    txCount: Number(r.txs),
+    txCount: Number(r.txs ?? 0),
     blocks: Number(r.blks),
   }));
 }

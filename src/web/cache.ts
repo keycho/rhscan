@@ -38,12 +38,13 @@ export const loadNetworkStats = unstable_cache(
   { revalidate: 10 },
 );
 
-// the per-day tx chart aggregates the entire (windowed) blocks table. it changes
-// slowly and is home-only, so cache it well beyond a single request.
+// the per-day tx chart. bounded by block_number in txPerDay (not a full-table
+// timestamp scan), and cached hard here since it changes slowly and is home-only,
+// so a cold miss is rare and the warm path never touches the db.
 export const loadTxPerDay = unstable_cache(
-  async (): Promise<DayBucket[]> => txPerDay(14),
+  async (): Promise<DayBucket[]> => txPerDay(),
   ["tx-per-day"],
-  { revalidate: 60 },
+  { revalidate: 300 },
 );
 
 // a block by number, cached for a year once it is below the reorg depth. a
