@@ -11,11 +11,12 @@ import postgres from "postgres";
 import { log } from "./log.js";
 import { COLUMNS, type BlockRows } from "./transform.js";
 
-// the indexer is one long-running process on supabase's SESSION pooler: every
-// worker (backfill, tail, tokens, holders, pruner, partition maintainer) shares
-// this pool, so the process opens at most PG_POOL_MAX connections total, not a
-// pool per worker. keep it well under supabase's session-pooler client cap (15):
-// against the pooler set PG_POOL_MAX=5. default 10.
+// the indexer is one long-running process that shares a single pool across every
+// worker (backfill, tail, tokens, holders, pruner, partition maintainer), so it
+// opens at most PG_POOL_MAX connections total, not a pool per worker. it connects
+// to a SEPARATE endpoint from the web app (see connect) — supabase's DIRECT
+// connection — so it can never compete for the transaction pooler's budget that
+// keeps the site up. keep this low while tailing: set PG_POOL_MAX=2 (or 3).
 const PG_POOL_MAX = Number(process.env.PG_POOL_MAX ?? 10);
 
 // web vs indexer connection profile. the web app runs on vercel as short-lived
@@ -41,8 +42,22 @@ function isWebMode(): boolean {
 let pool: postgres.Sql | null = null;
 function connect(): postgres.Sql {
   if (pool) return pool;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set, see .env.example");
+  const web = isWebMode();
+  // the web app connects to the TRANSACTION pooler via DATABASE_URL (unchanged).
+  // the indexer connects to a SEPARATE endpoint via INDEXER_DATABASE_URL (falling
+  // back to DATABASE_URL if unset): point that at supabase's DIRECT connection so
+  // the indexer holds its own dedicated backend connections and can never starve
+  // the pooler the site uses.
+  const url = web
+    ? process.env.DATABASE_URL
+    : process.env.INDEXER_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      web
+        ? "DATABASE_URL is not set, see .env.example"
+        : "INDEXER_DATABASE_URL / DATABASE_URL is not set, see .env.example",
+    );
+  }
   // web: a small pool with NO prepared statements against the transaction pooler
   // (pgbouncer transaction mode multiplexes a server connection per statement and
   // rejects prepared statements — that surfaces as CONNECTION_CLOSED). max:1
@@ -50,8 +65,11 @@ function connect(): postgres.Sql {
   // queued the rest into the statement timeout; max:5 gives per-instance
   // concurrency while staying far under the pooler's size (40). a short idle
   // timeout + max_lifetime return/recycle connections back to the pooler.
-  // indexer: a real pool with prepared statements on the session pooler.
-  pool = isWebMode()
+  // indexer: a real pool with prepared statements and persistent session-style
+  // connections (SELECT ... FOR UPDATE SKIP LOCKED, multi-statement transactions).
+  // the direct connection provides these natively; the session pooler (5432) is a
+  // working fallback. keep PG_POOL_MAX low (2-3) while tailing.
+  pool = web
     ? postgres(url, {
         max: 5,
         prepare: false,
