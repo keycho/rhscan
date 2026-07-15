@@ -1,6 +1,12 @@
-// a generated token avatar: a circular gradient whose hue is derived from the
-// contract address, with two-letter monospace initials. a stable stand-in until
-// real token logos are available.
+// a token avatar. renders a curated logo when one is mapped for the symbol
+// (tokenLogo, a pure static lookup — no db, no render-time fetch), overlaid on a
+// generated monogram: a circular gradient hued from the contract address with
+// two-letter initials. the logo is a plain lazy <img> that removes itself on load
+// failure, so an unmapped or unreachable logo falls back to the monogram — the
+// correct, honest default for the memecoins that make up most of the chain.
+
+import { tokenLogo } from "@/src/web/token-logos";
+import { TokenLogoImg } from "@/components/TokenLogoImg";
 
 function hueFrom(address: string): number {
   const h = address.replace(/^0x/, "").slice(0, 6);
@@ -27,9 +33,10 @@ export function TokenAvatar({
   fontSize?: number;
 }) {
   const hue = hueFrom(address);
+  const logo = tokenLogo(symbol);
   return (
     <div
-      className="mono flex flex-none items-center justify-center rounded-full font-semibold text-white"
+      className="mono relative flex flex-none items-center justify-center overflow-hidden rounded-full font-semibold text-white"
       style={{
         width: size,
         height: size,
@@ -39,6 +46,7 @@ export function TokenAvatar({
       aria-hidden="true"
     >
       {initials(symbol, name ?? null)}
+      {logo && <TokenLogoImg src={logo} alt={symbol ?? ""} />}
     </div>
   );
 }
