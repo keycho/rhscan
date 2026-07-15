@@ -16,10 +16,12 @@
 // or the whole missing-metadata set can be re-attempted with TOKENS_FORCE_REFRESH.
 
 import { erc20Abi } from "viem";
-import { tokenLane, MULTICALL3_ADDRESS } from "./chain.js";
+import { metadataLane, MULTICALL3_ADDRESS } from "./chain.js";
 import { sql } from "./db.js";
 
-const { client } = tokenLane;
+// the metadata worker runs at LOW priority on the global rpc budget, so it never
+// takes throughput the tail needs to keep up with the head (see chain.ts).
+const { multicall } = metadataLane;
 import { log } from "./log.js";
 
 // keep the batch small: draining a large missing-metadata backlog is a
@@ -89,7 +91,7 @@ async function resolveBatch(tokens: Unknown[]): Promise<number> {
     ];
   });
 
-  const results = (await client.multicall({
+  const results = (await multicall({
     contracts,
     allowFailure: true,
     multicallAddress: MULTICALL3_ADDRESS,

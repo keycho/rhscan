@@ -27,8 +27,11 @@ const { getBlockByNumber, getBlockReceipts, getHead } = tailLane;
 const POLL_MS = Number(process.env.POLL_MS ?? 1000);
 const TAIL_BATCH = Number(process.env.TAIL_BATCH ?? 100);
 // if the tail falls more than this many blocks behind the head, give up on the
-// backlog and jump to the head instead of replaying it.
-const TAIL_MAX_LAG = Number(process.env.TAIL_MAX_LAG ?? 2000);
+// backlog and jump to the head instead of replaying it. now that the tail has
+// high priority on the rpc budget over the metadata worker (see chain.ts) it
+// keeps pace with the head naturally, so this can be generous: a jump (and its
+// skipped-block gap) is a last resort for a real outage, not a per-cycle event.
+const TAIL_MAX_LAG = Number(process.env.TAIL_MAX_LAG ?? 5000);
 // on a jump, resync this far behind the current head, so the next poll indexes a
 // small batch of recent blocks and the head shows "seconds ago" immediately.
 const TAIL_RESUME_BEHIND = Number(process.env.TAIL_RESUME_BEHIND ?? 25);

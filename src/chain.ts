@@ -144,10 +144,18 @@ const toHex = (n: number): `0x${string}` => `0x${n.toString(16)}`;
 const RPC_RATE_LIMIT = Number(process.env.RPC_RATE_LIMIT ?? 40);
 const RPC_RATE_BURST = Number(process.env.RPC_RATE_BURST ?? 10);
 
+// call priority on a shared budget. "high" waiters are always served before any
+// "low" waiter, so a low-priority lane (token metadata) draws only the budget the
+// high-priority lanes (the tail following the head) are not using — the tail can
+// never be starved of throughput by the metadata backfill.
+type Priority = "high" | "low";
+
 class RateLimiter {
   private tokens: number;
   private last = Date.now();
-  private readonly waiters: Array<() => void> = [];
+  // two queues, strict priority: high drains fully before low is touched.
+  private readonly highWaiters: Array<() => void> = [];
+  private readonly lowWaiters: Array<() => void> = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -157,18 +165,23 @@ class RateLimiter {
     this.tokens = capacity;
   }
 
-  acquire(): Promise<void> {
+  acquire(priority: Priority = "high"): Promise<void> {
     return new Promise((resolve) => {
-      this.waiters.push(resolve);
+      (priority === "low" ? this.lowWaiters : this.highWaiters).push(resolve);
       this.pump();
     });
   }
 
-  // release as many queued waiters as there are tokens, then arm ONE timer for
-  // the next release. a single shared timer (not a sleep-and-repoll per waiter)
-  // keeps this O(1) even with thousands of callers queued, so a fan-out of range
-  // fetches can never thrash the event loop — the earlier polling design did, and
-  // the starvation showed up as spurious request failures under high concurrency.
+  private get pending(): number {
+    return this.highWaiters.length + this.lowWaiters.length;
+  }
+
+  // release as many queued waiters as there are tokens — every high waiter before
+  // any low one — then arm ONE timer for the next release. a single shared timer
+  // (not a sleep-and-repoll per waiter) keeps this O(1) even with thousands of
+  // callers queued, so a fan-out of range fetches can never thrash the event loop
+  // — the earlier polling design did, and the starvation showed up as spurious
+  // request failures under high concurrency.
   private pump(): void {
     const now = Date.now();
     this.tokens = Math.min(
@@ -176,11 +189,12 @@ class RateLimiter {
       this.tokens + ((now - this.last) / 1000) * this.rate,
     );
     this.last = now;
-    while (this.tokens >= 1 && this.waiters.length > 0) {
+    while (this.tokens >= 1 && this.pending > 0) {
       this.tokens -= 1;
-      this.waiters.shift()!();
+      const next = this.highWaiters.shift() ?? this.lowWaiters.shift()!;
+      next();
     }
-    if (this.waiters.length > 0 && this.timer == null) {
+    if (this.pending > 0 && this.timer == null) {
       const waitMs = Math.max(1, Math.ceil(((1 - this.tokens) / this.rate) * 1000));
       this.timer = setTimeout(() => {
         this.timer = null;
@@ -219,7 +233,11 @@ export interface RpcLog {
 // independent: backfill's burst never merges into tail's or the token workers'
 // batches, and one lane backing off on 429s does not stall another. observed
 // 429s are logged with the lane label so the culprit is obvious.
-export function createRpcLane(label: string, limiter: RateLimiter = globalLimiter) {
+export function createRpcLane(
+  label: string,
+  limiter: RateLimiter = globalLimiter,
+  priority: Priority = "high",
+) {
   const client = createPublicClient({
     chain: rhChain,
     transport: http(RPC_URL, {
@@ -231,12 +249,13 @@ export function createRpcLane(label: string, limiter: RateLimiter = globalLimite
 
   // raw batched json-rpc with exponential backoff and jitter on rate-limit and
   // transient network errors. non-transient errors throw immediately. every
-  // attempt (including retries) draws one token from the global limiter first,
-  // so the token count equals the json-rpc call count that alchemy meters.
+  // attempt (including retries) draws one token from the limiter first, at this
+  // lane's priority, so the token count equals the json-rpc call count that
+  // alchemy meters and a low-priority lane yields to the high-priority ones.
   async function rpc<T>(method: string, params: unknown[]): Promise<T> {
     let attempt = 0;
     for (;;) {
-      await limiter.acquire();
+      await limiter.acquire(priority);
       try {
         return (await client.request({
           method: method as never,
@@ -260,10 +279,24 @@ export function createRpcLane(label: string, limiter: RateLimiter = globalLimite
     }
   }
 
+  // multicall3 aggregate is a single eth_call, which alchemy meters as one call,
+  // so draw one token (at this lane's priority) before delegating to viem's
+  // native multicall. this is what pulls the metadata worker's calls onto the
+  // shared budget: previously client.multicall bypassed the limiter entirely, so
+  // its load was uncounted and, stacked on the tail's, pushed the provider past
+  // its ceiling and drew the 429s that made the tail fall behind.
+  async function multicall(
+    args: Parameters<typeof client.multicall>[0],
+  ): Promise<ReturnType<typeof client.multicall>> {
+    await limiter.acquire(priority);
+    return client.multicall(args);
+  }
+
   return {
     label,
     client,
     rpc,
+    multicall,
     getHead: async (): Promise<number> =>
       Number(BigInt(await rpc<`0x${string}`>("eth_blockNumber", []))),
     // eth_getBlockByNumber with full transactions gives per-tx fields (value,
@@ -314,10 +347,18 @@ export type RpcLane = ReturnType<typeof createRpcLane>;
 
 // one lane per worker class, so no two share a rate-limit budget or batch queue.
 export const backfillLane = createRpcLane("backfill");
+// the tail follows the head and MUST keep pace, so it runs at high priority on
+// the global budget.
 export const tailLane = createRpcLane("tail");
-// the token metadata worker, holder hydration, and verify:balances share the
-// "tokens" budget — a DEDICATED limiter, so the backfill can never starve them.
+// holder hydration and verify:balances share the "tokens" budget — a DEDICATED
+// limiter, so the backfill can never starve them.
 export const tokenLane = createRpcLane("tokens", tokenLimiter);
+// the token metadata worker runs on the GLOBAL budget at LOW priority, so it only
+// draws throughput the tail (high priority) is not using. this is what lets the
+// tail keep up with the head naturally: metadata backfill can never crowd the
+// provider ceiling ahead of the tail. it deliberately does NOT use tokenLimiter —
+// it must share, and yield within, the same budget the tail races on.
+export const metadataLane = createRpcLane("metadata", globalLimiter, "low");
 // the on-demand cold-path resolver and one-off cli reads.
 export const coldLane = createRpcLane("cold");
 
