@@ -48,6 +48,17 @@ const HYDRATION_WORKERS = Number(process.env.HYDRATION_WORKERS ?? 4);
 // so it is retried instead of orphaned forever.
 const HYDRATION_STALE_MIN = Number(process.env.HYDRATION_STALE_MIN ?? 20);
 
+// on-view hydration: when a token page's holders are opened and no snapshot
+// exists, hydrate inline in the request rather than waiting on the background
+// queue (which may not even be running). a just-launched token has little
+// Transfer history, so this finishes in ~1-3s. bounded so a heavy/old token
+// cannot hang the render — it falls back to a self-refreshing "building" state.
+const ONVIEW_BUDGET_MS = Number(process.env.ONVIEW_BUDGET_MS ?? 12_000);
+// re-claim a token left 'hydrating' by a frozen serverless attempt after this
+// long. short, because a real fresh-token hydration finishes in seconds; a stuck
+// one should retry on the next view rather than wait out HYDRATION_STALE_MIN.
+const ONVIEW_STALE_SEC = Number(process.env.ONVIEW_STALE_SEC ?? 25);
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const toHexBlock = (n: number): `0x${string}` => `0x${n.toString(16)}`;
@@ -449,6 +460,57 @@ export async function getTopHolders(
     balance: r.balance,
     lastUpdatedBlock: r.last_updated_block == null ? null : Number(r.last_updated_block),
   }));
+}
+
+// hydrate a token in-request when its holders are viewed and no snapshot exists
+// yet, so a just-launched token shows holders within seconds instead of a
+// blocking "check back". returns whether a snapshot is ready.
+//
+// safe under concurrency: a conditional claim (atomic upsert) means only ONE
+// runner — across every concurrent web request AND the background worker — replays
+// a given token at a time; the rest see done:false and the page shows a
+// self-refreshing "building" state. bounded by ONVIEW_BUDGET_MS so a heavy token
+// cannot hang the render. runs on the dedicated token rpc lane (isolated from the
+// cold-path resolver), and holds no db connection during the getLogs replay.
+export async function hydrateOnView(
+  address: string,
+  budgetMs = ONVIEW_BUDGET_MS,
+): Promise<{ done: boolean }> {
+  const a = address.toLowerCase();
+
+  const [cur] = await sql<{ hydrated_at_block: string | null }[]>`
+    select hydrated_at_block from token_hydration where token_address = ${a}
+  `;
+  if (cur?.hydrated_at_block != null) return { done: true }; // fast path
+
+  // claim: flip to 'hydrating' only if nobody is actively hydrating it (or a prior
+  // attempt went stale). the atomic upsert serialises concurrent viewers so only
+  // the winner runs the replay.
+  const claim = await sql<{ token_address: string }[]>`
+    insert into token_hydration (token_address, status, started_at)
+    values (${a}, 'hydrating', now())
+    on conflict (token_address) do update
+       set status = 'hydrating', started_at = now(), error = null
+     where token_hydration.hydrated_at_block is null
+       and (token_hydration.status is distinct from 'hydrating'
+            or token_hydration.started_at < now() - (${ONVIEW_STALE_SEC}::int * interval '1 second'))
+    returning token_address
+  `;
+  if (claim.length === 0) return { done: false }; // another hydration is in flight
+
+  // run the replay+write bounded by the budget. hydrateToken swallows its own
+  // errors (it records status='failed'); we read the stored state back to decide.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, budgetMs);
+  });
+  await Promise.race([hydrateToken(a).catch(() => {}), budget]);
+  if (timer) clearTimeout(timer);
+
+  const [after] = await sql<{ hydrated_at_block: string | null }[]>`
+    select hydrated_at_block from token_hydration where token_address = ${a}
+  `;
+  return { done: after?.hydrated_at_block != null };
 }
 
 // token page: triggers hydration lazily, returns what we have plus a hydrating

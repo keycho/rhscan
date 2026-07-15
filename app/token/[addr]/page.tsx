@@ -11,9 +11,10 @@ import { HoldersTable } from "@/components/HoldersTable";
 import { HoldersOverview } from "@/components/HoldersOverview";
 import { TokenTransfersTable } from "@/components/tables";
 import { CollisionTable } from "@/components/CollisionTable";
-import { DriftBanner, Note } from "@/components/Disclosures";
-import { AmberDot } from "@/components/honesty";
-import { getTokenOverview } from "@/src/holders";
+import { DriftBanner } from "@/components/Disclosures";
+import { AmberDot, LiveDot } from "@/components/honesty";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { getTokenOverview, hydrateOnView } from "@/src/holders";
 import { collidingTokens, tokenTransfers } from "@/src/web/tokens-web";
 import { loadDrift } from "@/src/web/cache";
 import { holderAnalytics } from "@/src/web/holder-analytics";
@@ -46,21 +47,33 @@ export default async function TokenPage({
   const a = addr.toLowerCase();
   const { tab } = await searchParams;
 
-  const overview = await getTokenOverview(a);
-  const others = await collidingTokens(a, overview.name, overview.symbol);
-
   const active = tab === "transfers" ? "transfers" : "holders";
-  const transfers = active === "transfers" ? await tokenTransfers(a, 50) : [];
-  const drift =
-    active === "holders"
-      ? await loadDrift(a, overview.hydratedAtBlock, overview.topHolders)
-      : null;
+
+  let overview = await getTokenOverview(a);
+
+  // on-view hydration: for the holders tab, if this token has no snapshot yet,
+  // build one inline. a freshly launched token finishes in ~1-3s, so holders show
+  // now instead of a blocking "check back"; a heavy token that exceeds the budget
+  // leaves a self-refreshing "building" state rather than hanging the render.
+  let holdersPending = false;
+  if (active === "holders" && overview.hydratedAtBlock == null) {
+    const { done } = await hydrateOnView(a);
+    if (done) overview = await getTokenOverview(a);
+    else holdersPending = true;
+  }
 
   const stats = overview.stats;
-  const analytics =
-    active === "holders"
-      ? holderAnalytics(overview.topHolders, overview.totalSupply, stats?.holderCount ?? null)
-      : null;
+  const others = await collidingTokens(a, overview.name, overview.symbol);
+  const transfers = active === "transfers" ? await tokenTransfers(a, 50) : [];
+
+  const hasHolders =
+    active === "holders" && overview.hydratedAtBlock != null && overview.topHolders.length > 0;
+  const drift = hasHolders
+    ? await loadDrift(a, overview.hydratedAtBlock, overview.topHolders)
+    : null;
+  const analytics = hasHolders
+    ? holderAnalytics(overview.topHolders, overview.totalSupply, stats?.holderCount ?? null)
+    : null;
   const shown = overview.topHolders.length;
   const typeLabel = overview.tokenType ?? "token";
 
@@ -94,7 +107,6 @@ export default async function TokenPage({
             </div>
             <div className="mono mt-[2px] text-[11px] text-muted">
               {overview.tokenType ?? "unknown type"}
-              {overview.hydrating && <span className="ml-2 text-amber">· hydrating</span>}
             </div>
           </div>
         </div>
@@ -161,17 +173,17 @@ export default async function TokenPage({
       </div>
 
       {active === "holders" ? (
-        overview.hydrating ? (
-          <Note>
-            holder balances are still being replayed from this token&apos;s full Transfer history.
-            check back shortly; the list will appear once hydration completes.
-          </Note>
-        ) : overview.topHolders.length === 0 ? (
-          <Panel>
-            <Empty>no holders indexed.</Empty>
-          </Panel>
-        ) : (
+        hasHolders ? (
           <>
+            {/* live snapshot: balances are replayed to the head and change every block */}
+            <div className="mb-[10px] flex items-center gap-2 text-[11px] text-label">
+              <LiveDot />
+              <span>
+                live holder snapshot at block{" "}
+                <span className="mono text-secondary">{formatNumber(overview.hydratedAtBlock!)}</span> ·
+                balances change every block
+              </span>
+            </div>
             {analytics && <HoldersOverview analytics={analytics} holderCount={stats?.holderCount ?? null} />}
             {drift && (drift.flagged || !drift.verifiable) && (
               <div className="mb-[14px]">
@@ -194,6 +206,19 @@ export default async function TokenPage({
               </div>
             </Panel>
           </>
+        ) : holdersPending ? (
+          <Panel>
+            <div className="flex items-center gap-3 px-4 py-8 text-[13px] text-label">
+              <LiveDot />
+              building a live holder snapshot from this token&apos;s Transfer history — this updates
+              automatically in a moment.
+            </div>
+            <AutoRefresh seconds={4} />
+          </Panel>
+        ) : (
+          <Panel>
+            <Empty>no active holders — every balance is zero or burned.</Empty>
+          </Panel>
         )
       ) : (
         <Panel>
