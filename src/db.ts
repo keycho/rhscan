@@ -43,15 +43,17 @@ function connect(): postgres.Sql {
   if (pool) return pool;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set, see .env.example");
-  // web: one connection per function instance and NO prepared statements — the
-  // transaction pooler multiplexes a connection per statement and rejects
-  // prepared statements, which surfaces as CONNECTION_CLOSED; a pool of 10 per
-  // instance exhausts the pooler and surfaces as ECHECKOUTTIMEOUT. a short idle
-  // timeout releases the connection back to the pooler quickly between requests.
+  // web: a small pool with NO prepared statements against the transaction pooler
+  // (pgbouncer transaction mode multiplexes a server connection per statement and
+  // rejects prepared statements — that surfaces as CONNECTION_CLOSED). max:1
+  // serialised every concurrent request onto one connection, so a single query
+  // queued the rest into the statement timeout; max:5 gives per-instance
+  // concurrency while staying far under the pooler's size (40). a short idle
+  // timeout + max_lifetime return/recycle connections back to the pooler.
   // indexer: a real pool with prepared statements on the session pooler.
   pool = isWebMode()
     ? postgres(url, {
-        max: 1,
+        max: 5,
         prepare: false,
         // return the connection to the pooler when the instance goes idle, and
         // proactively recycle it well before supavisor would reap a stale one
