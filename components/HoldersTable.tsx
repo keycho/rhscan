@@ -11,7 +11,11 @@ import { formatUnits, isZeroAddress } from "@/src/web/format";
 import type { Holder } from "@/src/holders";
 import type { DriftReport } from "@/src/web/drift";
 
-const COLS = "grid-cols-[60px_minmax(0,1fr)_170px_220px_120px]";
+// the address holds a full 42-char mono hash that cannot wrap, so its column
+// gets an explicit minimum wide enough to fit it (minmax(0,1fr) let the track
+// shrink below the address, which then overflowed into the quantity column). the
+// table lives in a ScrollX, so narrow viewports scroll rather than overlap.
+const COLS = "grid-cols-[48px_minmax(340px,1fr)_180px_190px_76px]";
 
 // balance / total as a percentage number, exact via bigint.
 function pctNum(balance: string, total: string | null): number {
@@ -43,7 +47,7 @@ export function HoldersTable({
 
   return (
     <ScrollX>
-      <div className="min-w-[760px]">
+      <div className="min-w-[840px]">
         <div
           className={`grid ${COLS} border-b border-border-strong bg-subtle px-4 py-[9px] text-[10.5px] uppercase tracking-[0.03em] text-label`}
         >

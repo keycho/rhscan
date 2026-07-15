@@ -87,21 +87,21 @@ export function AddressTruncationNote({ windowFloor }: { windowFloor: number | n
 export function DriftBanner({ report }: { report: DriftReport }) {
   if (report.flagged) {
     return (
-      <Banner tone="warn">
-        this holder list may be unreliable. for{" "}
-        <strong>
-          {report.mismatches} of {report.checked}
-        </strong>{" "}
-        top holders checked, the balance replayed from Transfer events disagrees
-        with the token&apos;s live balanceOf
+      <Banner tone="info">
+        these balances are replayed from Transfer events and verified against the
+        token&apos;s live balanceOf
         {report.atBlock != null ? (
           <>
             {" "}
             at block <span className="mono">{formatNumber(report.atBlock)}</span>
           </>
         ) : null}
-        . fee-on-transfer, rebasing or blacklist behaviour can cause this. the
-        divergent rows are marked below.
+        .{" "}
+        <strong>
+          {report.mismatches} of {report.checked}
+        </strong>{" "}
+        checked holders differ — this usually means fee-on-transfer, rebasing, or
+        blacklist behaviour. the divergent rows are marked below.
       </Banner>
     );
   }
