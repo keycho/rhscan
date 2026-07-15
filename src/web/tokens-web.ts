@@ -155,13 +155,24 @@ export async function collidingTokens(
   return attachWindowed(rows.map(toCard));
 }
 
-// is this address a token we hold metadata for? used to route a 40-hex search to
-// the token page vs the address page. a single pk lookup.
+// is this address a token? routes a 40-hex search to the token page vs the bare
+// address page. "known token" is any of: we hold metadata for it, we have a
+// hydration/stats row for it, or we have seen a standard Transfer emitted by it.
+// token_transfers.token_address is always the emitting contract (an eoa never
+// emits logs), so a hit there is a reliable token signal even before the metadata
+// worker has resolved a name. all four probes are cheap: pk lookups plus one
+// index seek on token_transfers(token_address).
 export async function isKnownToken(address: string): Promise<boolean> {
-  const rows = await sql<{ one: number }[]>`
-    select 1 as one from tokens where address = ${address.toLowerCase()} limit 1
+  const a = address.toLowerCase();
+  const [row] = await sql<{ ok: boolean }[]>`
+    select (
+      exists(select 1 from tokens where address = ${a})
+      or exists(select 1 from token_hydration where token_address = ${a})
+      or exists(select 1 from token_stats where token_address = ${a})
+      or exists(select 1 from token_transfers where token_address = ${a})
+    ) as ok
   `;
-  return rows.length > 0;
+  return row?.ok ?? false;
 }
 
 export interface TokenTransfer {

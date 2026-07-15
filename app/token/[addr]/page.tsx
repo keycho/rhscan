@@ -110,11 +110,16 @@ export default async function TokenPage({
             </div>
           </div>
         </div>
-        {overview.tokenType && (
-          <div className="mono rounded-md border border-border bg-surface px-[13px] py-[7px] text-[13px] text-tertiary">
-            {overview.tokenType}
-          </div>
-        )}
+        <div className="flex flex-col items-end gap-[6px]">
+          {overview.tokenType && (
+            <div className="mono rounded-md border border-border bg-surface px-[13px] py-[7px] text-[13px] text-tertiary">
+              {overview.tokenType}
+            </div>
+          )}
+          <Link href={`/address/${a}`} className="text-[11px] text-label hover:text-green">
+            view raw address ↗
+          </Link>
+        </div>
       </div>
 
       {/* overview + activity */}
