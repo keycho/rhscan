@@ -7,7 +7,12 @@ import { latestBlocks, latestTransactions } from "@/src/web/lists";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [blocks, txns] = await Promise.all([latestBlocks(12), latestTransactions(12)]);
+  // degrade to empty rather than 500 on a transient pooler error; the poller
+  // keeps its last good data and retries on the next tick.
+  const [blocks, txns] = await Promise.all([
+    latestBlocks(12).catch(() => []),
+    latestTransactions(12).catch(() => []),
+  ]);
   return Response.json(
     { blocks, txns },
     { headers: { "cache-control": "no-store, max-age=0" } },

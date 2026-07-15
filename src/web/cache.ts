@@ -18,34 +18,52 @@ import type { Holder } from "../holders.js";
 export const REORG_DEPTH = 30;
 const YEAR = 60 * 60 * 24 * 365;
 
-// watermarks change every block; a few seconds of sharing across a request tree
-// is fine and keeps every component from re-reading sync_state.
-export const loadWatermarks = unstable_cache(
-  async (): Promise<Watermarks> => getWatermarks(),
-  ["watermarks"],
-  { revalidate: 3 },
-);
+// an in-process TTL memo. deliberately NOT next's unstable_cache for these
+// frequently-refreshed reads. unstable_cache does stale-while-revalidate with a
+// BACKGROUND refresh, and on vercel that background query runs after the response
+// while the serverless instance is frozen/reclaimed. against the pgbouncer
+// transaction pooler that kills the query mid-flight (CONNECTION_CLOSED /
+// ECHECKOUTTIMEOUT / EDBHANDLEREXITED) and poisons the shared max:1 postgres.js
+// connection for the next request — the production 500 loop, all logged under
+// "revalidating cache with key ...". this memo instead recomputes INLINE on
+// expiry, inside the request, on a live connection, and shares one in-flight
+// promise so concurrent callers never stampede the single connection. it is
+// per-instance (no cross-instance cache), which is fine: each read is ~1ms and
+// refreshes at most once per ttl per warm instance, always within a request.
+function memoTTL<T>(fn: () => Promise<T>, ttlMs: number): () => Promise<T> {
+  let value: T | undefined;
+  let expiry = 0;
+  let inflight: Promise<T> | null = null;
+  return () => {
+    if (value !== undefined && Date.now() < expiry) return Promise.resolve(value);
+    if (inflight) return inflight;
+    inflight = fn()
+      .then((v) => {
+        value = v;
+        expiry = Date.now() + ttlMs;
+        return v;
+      })
+      .catch((err: unknown) => {
+        // a pooler blip degrades to the last good value instead of throwing.
+        if (value !== undefined) return value;
+        throw err;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+    return inflight;
+  };
+}
 
-// network stats feed the utility strip (rendered by the layout on EVERY route)
-// and the home stats card. the tps/median-gas aggregates and the reltuples
-// estimate are the same for all callers within a few seconds, so cache them:
-// without this the layout re-runs them on every request, and under the
-// serverless max:1 connection a single slow run stalls the whole page. a cache
-// hit means the layout touches the db for stats not at all.
-export const loadNetworkStats = unstable_cache(
-  async (): Promise<NetworkStats> => getNetworkStats(),
-  ["network-stats"],
-  { revalidate: 10 },
-);
+// watermarks (head + floors) change every block, but a few seconds stale in the
+// chrome is fine; the /api/head poller carries the live head separately.
+export const loadWatermarks = memoTTL((): Promise<Watermarks> => getWatermarks(), 10_000);
 
-// the per-day tx chart. bounded by block_number in txPerDay (not a full-table
-// timestamp scan), and cached hard here since it changes slowly and is home-only,
-// so a cold miss is rare and the warm path never touches the db.
-export const loadTxPerDay = unstable_cache(
-  async (): Promise<DayBucket[]> => txPerDay(),
-  ["tx-per-day"],
-  { revalidate: 300 },
-);
+// network stats feed the utility strip (layout, every route) and the home card.
+export const loadNetworkStats = memoTTL((): Promise<NetworkStats> => getNetworkStats(), 15_000);
+
+// the per-day tx chart changes slowly and is home-only.
+export const loadTxPerDay = memoTTL((): Promise<DayBucket[]> => txPerDay(), 600_000);
 
 // a block by number, cached for a year once it is below the reorg depth. a
 // head-adjacent block is read fresh so a just-mined block is never stale.

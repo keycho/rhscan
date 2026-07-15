@@ -13,13 +13,26 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function Home() {
+  // every read degrades to a safe empty value: a transient pooler hiccup should
+  // render the page with a blank section, never 500 the whole route.
   const [eth, stats, blocks, txns, chart, wm] = await Promise.all([
-    getEthMarket(),
-    loadNetworkStats(),
-    latestBlocks(12),
-    latestTransactions(12),
-    loadTxPerDay(),
-    loadWatermarks(),
+    getEthMarket().catch(() => ({ usd: null, change24h: null, marketCap: null })),
+    loadNetworkStats().catch(() => ({
+      head: null,
+      latestBlockTime: null,
+      txCountEstimate: 0,
+      tps: null,
+      medianBaseFeeWei: null,
+    })),
+    latestBlocks(12).catch(() => []),
+    latestTransactions(12).catch(() => []),
+    loadTxPerDay().catch(() => []),
+    loadWatermarks().catch(() => ({
+      head: null,
+      headUpdatedAt: null,
+      backfillFloor: null,
+      windowFloor: null,
+    })),
   ]);
 
   return (

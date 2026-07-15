@@ -53,8 +53,12 @@ function connect(): postgres.Sql {
     ? postgres(url, {
         max: 1,
         prepare: false,
-        idle_timeout: 10,
-        connect_timeout: 15,
+        // return the connection to the pooler when the instance goes idle, and
+        // proactively recycle it well before supavisor would reap a stale one
+        // (which otherwise surfaces as CONNECTION_CLOSED on the next query).
+        idle_timeout: 20,
+        max_lifetime: 60 * 10,
+        connect_timeout: 10,
         onnotice: () => {},
       })
     : postgres(url, {
