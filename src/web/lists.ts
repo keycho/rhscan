@@ -7,6 +7,16 @@
 
 import { sql } from "../db.js";
 
+// how many blocks back the "latest" reads scan. this bound exists purely to force
+// partition pruning: `order by ... limit` over a partitioned table should merge
+// the per-partition indexes (MergeAppend), but with drifting stats the planner
+// can flip to Append + Sort — a full sort of the whole ~150M-row transactions
+// table for a LIMIT 12, which trips the statement timeout. bounding by
+// block_number prunes to the most-recent partition(s) so the ordered index scan
+// is the only plan. the LIMIT still caps rows read; 20k blocks always holds far
+// more than any limit.
+const RECENT_BLOCKS = 20_000;
+
 const toHex = (b: unknown): string | null => {
   if (b == null) return null;
   const buf = b as Buffer;
@@ -41,6 +51,7 @@ export async function latestBlocks(limit = 12): Promise<BlockSummary[]> {
   >`
     select number, hash, timestamp, miner, gas_used, tx_count
       from blocks
+     where number > (select max(number) from blocks) - ${RECENT_BLOCKS}
      order by number desc
      limit ${limit}
   `;
@@ -71,6 +82,7 @@ export async function latestTransactions(limit = 12): Promise<TxSummary[]> {
     select hash, block_number, block_timestamp, tx_index,
            from_address, to_address, value, method_id, status
       from transactions
+     where block_number > (select max(number) from blocks) - ${RECENT_BLOCKS}
      order by block_number desc, tx_index desc
      limit ${limit}
   `;

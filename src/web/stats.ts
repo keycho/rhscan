@@ -40,8 +40,13 @@ export async function estimatedTxCount(): Promise<number> {
 }
 
 export async function getNetworkStats(): Promise<NetworkStats> {
+  // head via the min/max index optimisation + a pk equality lookup, NOT
+  // `order by number desc limit 1`: the latter can flip to an Append + Sort of
+  // the whole partitioned blocks table under drifting stats. max() is rewritten
+  // to a per-partition index scan and never seq-scans.
   const [latest] = await sql<{ number: string; timestamp: Date }[]>`
-    select number, timestamp from blocks order by number desc limit 1
+    select number, timestamp from blocks
+     where number = (select max(number) from blocks)
   `;
   const head = latest ? Number(latest.number) : null;
 
