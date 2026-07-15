@@ -22,8 +22,17 @@ import { sql } from "./db.js";
 const { client } = tokenLane;
 import { log } from "./log.js";
 
-const TOKENS_BATCH = Number(process.env.TOKENS_BATCH ?? 50);
+// keep the batch small: draining a large missing-metadata backlog is a
+// background trickle, not a race. a small batch bounds the size of each discovery
+// scan and upsert so a single pass can never spike db load.
+const TOKENS_BATCH = Number(process.env.TOKENS_BATCH ?? 25);
 const TOKENS_IDLE_MS = Number(process.env.TOKENS_IDLE_MS ?? 5000);
+// pause between batches even when there is more backlog to drain. this rate-limits
+// the backlog drain itself (not just the rpc calls): a big backlog is worked off
+// slowly over time instead of back-to-back, so the indexer never overloads the
+// shared database and times out the site. raise it to drain more gently, lower it
+// to drain faster.
+const TOKENS_BATCH_DELAY_MS = Number(process.env.TOKENS_BATCH_DELAY_MS ?? 2000);
 // re-attempt every row missing metadata even if it was attempted before. off by
 // default so contracts with no metadata methods are not re-hammered each pass.
 const TOKENS_FORCE_REFRESH = (process.env.TOKENS_FORCE_REFRESH ?? "false") === "true";
@@ -144,7 +153,8 @@ function sanitize(s: string | null): string | null {
 
 export async function runTokens(stopped: () => boolean = () => false): Promise<void> {
   log.info(
-    `token metadata worker started, batch ${TOKENS_BATCH}` +
+    `token metadata worker started, batch ${TOKENS_BATCH}, ` +
+      `batch delay ${TOKENS_BATCH_DELAY_MS}ms` +
       (TOKENS_FORCE_REFRESH ? " (force refresh)" : ""),
   );
   while (!stopped()) {
@@ -156,6 +166,9 @@ export async function runTokens(stopped: () => boolean = () => false): Promise<v
       }
       const resolved = await resolveBatch(tokens);
       log.info(`token metadata: attempted ${tokens.length}, resolved ${resolved}`);
+      // pause between batches so a large backlog drains as a slow trickle rather
+      // than back-to-back queries + upserts that overload the shared db.
+      await sleep(TOKENS_BATCH_DELAY_MS);
     } catch (err) {
       log.error(`token metadata batch failed, backing off: ${String(err)}`);
       await sleep(TOKENS_IDLE_MS);
