@@ -1,10 +1,18 @@
 // holder-distribution analytics, derived purely from the indexed top-holder
-// balances and the token's total supply. concentration (top-N share) and the
-// donut segments only need the top holders' balances relative to supply, so they
-// are exact regardless of the total holder count. the gini index and the tier
-// distribution are computed over the holders we actually hold (up to the indexed
-// top-N); they carry an amber honesty tag and an "across the top N holders" note
-// in the ui, because they approximate a distribution we do not fully index.
+// balances and the token's total supply. no external calls, no new data source.
+//
+// every metric is measured against a basis: the token's total supply when it is
+// known, otherwise the sum of the indexed holder balances we hold. this is the
+// same honest fallback the holders-table percentage column uses — when supply is
+// unresolved we say so and label the figures "of indexed balances" rather than
+// pretending they are shares of supply.
+//
+// what is exact vs approximate: holders are ranked by balance and we hold the top
+// N, so the top-N concentration bands and the donut are exact shares of the basis
+// regardless of the total holder count, and the larger size tiers are complete.
+// the gini index and the smallest tiers are computed over the holders we actually
+// index (up to the top N); they carry an amber honesty tag and an "across the top
+// N holders" note in the ui.
 
 import type { Holder } from "@/src/holders";
 
@@ -20,13 +28,16 @@ export interface ConcentrationSegment {
 export interface TierRow {
   emoji: string;
   label: string;
-  pct: number; // share of the analysed holders, 0..100
-  count: number;
+  threshold: string; // human threshold, e.g. ">= 1%"
+  pct: number; // this tier's share of the basis, 0..100
+  count: number; // holders in this tier (within the analysed set)
 }
 
 export interface HolderAnalytics {
   analysed: number; // how many holders these figures cover
   exact: boolean; // true when we hold every holder (analysed >= holderCount)
+  supplyKnown: boolean; // basis is total supply (true) or sum of indexed balances (false)
+  basisLabel: string; // "supply" | "indexed balances" — for honest ui copy
   top5: number | null;
   top10: number | null;
   top25: number | null;
@@ -38,10 +49,20 @@ export interface HolderAnalytics {
   tiers: TierRow[];
 }
 
-// balance / total as a fraction in [0, 1], computed with bigint for precision.
-function frac(balance: bigint, total: bigint): number {
-  if (total <= 0n) return 0;
-  return Number((balance * 1_000_000_000n) / total) / 1e9;
+// balances arrive from the db as integer (wei) strings; guard against a stray
+// non-numeric value rather than throwing and 500-ing the whole page.
+function toBig(s: string): bigint {
+  try {
+    return BigInt(s);
+  } catch {
+    return 0n;
+  }
+}
+
+// balance / basis as a fraction in [0, 1], computed with bigint for precision.
+function frac(balance: bigint, basis: bigint): number {
+  if (basis <= 0n) return 0;
+  return Number((balance * 1_000_000_000n) / basis) / 1e9;
 }
 
 // sum of the first n fractions, as a percentage.
@@ -64,23 +85,23 @@ function gini(fracs: number[]): number | null {
   return Math.max(0, Math.min(1, g));
 }
 
+// plain-language bands: <=0.4 well distributed, 0.4–0.7 moderately concentrated,
+// >0.7 highly concentrated.
 function giniLabel(g: number | null): string {
   if (g == null) return "insufficient data";
-  if (g >= 0.9) return "highly concentrated";
-  if (g >= 0.75) return "very concentrated";
-  if (g >= 0.55) return "concentrated";
-  if (g >= 0.35) return "moderately spread";
-  return "broadly distributed";
+  if (g > 0.7) return "highly concentrated";
+  if (g >= 0.4) return "moderately concentrated";
+  return "well distributed";
 }
 
-// size tiers by each holder's share of supply. standard crypto analytics tiers.
-const TIER_DEFS: { emoji: string; label: string; min: number }[] = [
-  { emoji: "🐋", label: "whale", min: 0.01 }, // >= 1%
-  { emoji: "🦈", label: "shark", min: 0.001 }, // 0.1% – 1%
-  { emoji: "🐬", label: "dolphin", min: 0.0001 }, // 0.01% – 0.1%
-  { emoji: "🐟", label: "fish", min: 0.00001 }, // 0.001% – 0.01%
-  { emoji: "🦀", label: "crab", min: 0.000001 }, // 0.0001% – 0.001%
-  { emoji: "🦐", label: "shrimp", min: 0 }, // < 0.0001%
+// size tiers by each holder's share of the basis. standard crypto analytics tiers.
+const TIER_DEFS: { emoji: string; label: string; threshold: string; min: number }[] = [
+  { emoji: "🐋", label: "whale", threshold: "≥ 1%", min: 0.01 },
+  { emoji: "🦈", label: "shark", threshold: "0.1 – 1%", min: 0.001 },
+  { emoji: "🐬", label: "dolphin", threshold: "0.01 – 0.1%", min: 0.0001 },
+  { emoji: "🐟", label: "fish", threshold: "0.001 – 0.01%", min: 0.00001 },
+  { emoji: "🦀", label: "crab", threshold: "0.0001 – 0.001%", min: 0.000001 },
+  { emoji: "🦐", label: "shrimp", threshold: "< 0.0001%", min: 0 },
 ];
 
 export function holderAnalytics(
@@ -88,20 +109,30 @@ export function holderAnalytics(
   totalSupply: string | null,
   holderCount: number | null,
 ): HolderAnalytics | null {
-  if (!totalSupply) return null;
-  const total = BigInt(totalSupply);
-  if (total <= 0n || holders.length === 0) return null;
+  if (holders.length === 0) return null;
 
-  const fracs = holders
-    .map((h) => frac(BigInt(h.balance), total))
-    .sort((a, b) => b - a); // descending
+  // descending balances, positive only. the query returns them ranked, but sort
+  // defensively so the top-N bands are correct regardless of caller ordering.
+  const balances = holders
+    .map((h) => toBig(h.balance))
+    .filter((b) => b > 0n)
+    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+  if (balances.length === 0) return null;
 
-  const analysed = fracs.length;
+  const supply = totalSupply ? toBig(totalSupply) : 0n;
+  const sumIndexed = balances.reduce((a, b) => a + b, 0n);
+  const supplyKnown = supply > 0n;
+  // basis: total supply when known, else the sum of the indexed balances.
+  const basis = supplyKnown ? supply : sumIndexed;
+  if (basis <= 0n) return null;
+
+  const fracs = balances.map((b) => frac(b, basis)); // descending
+
+  const analysed = balances.length;
   const exact = holderCount == null ? true : analysed >= holderCount;
 
-  // donut / concentration bands.
-  const band = (lo: number, hi: number) =>
-    fracs.slice(lo, hi).reduce((a, b) => a + b, 0) * 100;
+  // donut / concentration bands (share of basis, exact for the top-N holders).
+  const band = (lo: number, hi: number) => fracs.slice(lo, hi).reduce((a, b) => a + b, 0) * 100;
   const top100 = topPct(fracs, 100) ?? 0;
   const bands = [
     { label: "top 1–5", pct: band(0, 5) },
@@ -117,17 +148,24 @@ export function holderAnalytics(
     color: RAMP[i]!,
   }));
 
-  // tier distribution over the analysed holders.
-  const counts = TIER_DEFS.map(() => 0);
-  for (const f of fracs) {
-    const idx = TIER_DEFS.findIndex((t) => f >= t.min);
-    counts[idx === -1 ? TIER_DEFS.length - 1 : idx] += 1;
+  // tier distribution: assign each holder to a tier by its share of the basis,
+  // and show each tier's *aggregate* share of the basis (summed in bigint so many
+  // small holders do not accumulate float error).
+  const tierBal = TIER_DEFS.map(() => 0n);
+  const tierCount = TIER_DEFS.map(() => 0);
+  for (let i = 0; i < balances.length; i += 1) {
+    const f = fracs[i]!;
+    let idx = TIER_DEFS.findIndex((t) => f >= t.min);
+    if (idx === -1) idx = TIER_DEFS.length - 1;
+    tierBal[idx] = tierBal[idx]! + balances[i]!;
+    tierCount[idx] = tierCount[idx]! + 1;
   }
   const tiers: TierRow[] = TIER_DEFS.map((t, i) => ({
     emoji: t.emoji,
     label: t.label,
-    count: counts[i]!,
-    pct: analysed > 0 ? (counts[i]! / analysed) * 100 : 0,
+    threshold: t.threshold,
+    count: tierCount[i]!,
+    pct: Number((tierBal[i]! * 1_000_000n) / basis) / 10_000,
   }));
 
   const g = gini(fracs);
@@ -135,6 +173,8 @@ export function holderAnalytics(
   return {
     analysed,
     exact,
+    supplyKnown,
+    basisLabel: supplyKnown ? "supply" : "indexed balances",
     top5: topPct(fracs, 5),
     top10: topPct(fracs, 10),
     top25: topPct(fracs, 25),
