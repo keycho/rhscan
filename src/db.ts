@@ -165,7 +165,8 @@ async function applyTransferDeltas(
   if (inserted.length === 0) return;
   const tokenAddrs = [...new Set(inserted.map((r) => String(r.token_address)))];
   // hydration state lives in token_hydration, not tokens, so it never collides
-  // with the metadata worker's "bare row means already attempted" invariant.
+  // with the metadata worker (which keys "already attempted" off tokens
+  // .metadata_fetched_at, not off the mere existence of a row).
   const hydrated = await exec<{ token_address: string; hydrated_at_block: string }[]>`
     select token_address, hydrated_at_block from token_hydration
      where token_address in ${exec(tokenAddrs)}
