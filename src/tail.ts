@@ -6,6 +6,14 @@
 // back to the last block whose stored hash still matches the chain, delete every
 // row above it across all tables, rewind, and resume. an unhandled reorg is
 // silently corrupt data forever, which is worse than being slow.
+//
+// jump-to-head: this chain produces blocks faster than a cold/throttled tail can
+// replay them, so once the tail falls far enough behind (TAIL_MAX_LAG) it can
+// never catch up and the head freezes. rather than grind through an impossible
+// backlog, the tail skips the gap and resyncs near the current head, indexing
+// only a few new blocks per poll. the skipped blocks are intentionally left
+// unindexed — a live head matters more than gap-free tail history, and the gap
+// can be backfilled separately later.
 
 import { tailLane } from "./chain.js";
 import { sql, writeBlocks, type Executor } from "./db.js";
@@ -18,6 +26,12 @@ const { getBlockByNumber, getBlockReceipts, getHead } = tailLane;
 
 const POLL_MS = Number(process.env.POLL_MS ?? 1000);
 const TAIL_BATCH = Number(process.env.TAIL_BATCH ?? 100);
+// if the tail falls more than this many blocks behind the head, give up on the
+// backlog and jump to the head instead of replaying it.
+const TAIL_MAX_LAG = Number(process.env.TAIL_MAX_LAG ?? 2000);
+// on a jump, resync this far behind the current head, so the next poll indexes a
+// small batch of recent blocks and the head shows "seconds ago" immediately.
+const TAIL_RESUME_BEHIND = Number(process.env.TAIL_RESUME_BEHIND ?? 25);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -156,6 +170,20 @@ export async function runTail(stopped: () => boolean = () => false): Promise<voi
       if (head <= last) {
         await sleep(POLL_MS);
         continue;
+      }
+
+      // jump-to-head: too far behind to ever catch up block-by-block, so skip the
+      // backlog and resync near the head. one watermark write, no rpc. the first
+      // block after the jump has no stored parent, so processBatch's reorg check
+      // correctly skips it (prevHash is null) and there is no false reorg.
+      if (head - last > TAIL_MAX_LAG) {
+        const resumeFrom = Math.max(last, head - TAIL_RESUME_BEHIND);
+        log.warn(
+          `tail ${head - last} blocks behind head ${head} (> TAIL_MAX_LAG ${TAIL_MAX_LAG}); ` +
+            `jumping to head, resuming at ${resumeFrom}, skipping ${resumeFrom - last} blocks`,
+        );
+        await setLast(sql, resumeFrom);
+        last = resumeFrom;
       }
 
       // process at most one batch per iteration so reorg checks stay tight.
