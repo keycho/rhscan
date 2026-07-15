@@ -11,12 +11,25 @@ import postgres from "postgres";
 import { log } from "./log.js";
 import { COLUMNS, type BlockRows } from "./transform.js";
 
-// one shared pool for the whole process. every worker (backfill, tail, tokens,
-// holders, pruner, partition maintainer) and the web read helpers import the
-// same `sql`, so the process opens at most PG_POOL_MAX connections total, not a
+// the indexer is one long-running process on supabase's SESSION pooler: every
+// worker (backfill, tail, tokens, holders, pruner, partition maintainer) shares
+// this pool, so the process opens at most PG_POOL_MAX connections total, not a
 // pool per worker. keep it well under supabase's session-pooler client cap (15):
 // against the pooler set PG_POOL_MAX=5. default 10.
 const PG_POOL_MAX = Number(process.env.PG_POOL_MAX ?? 10);
+
+// web vs indexer connection profile. the web app runs on vercel as short-lived
+// serverless functions against supabase's TRANSACTION pooler (port 6543,
+// pgbouncer transaction mode); the indexer is a long-running process on the
+// SESSION pooler. select explicitly with DB_MODE=web|indexer; when unset, a
+// next.js server runtime (NEXT_RUNTIME set) is treated as web and everything
+// else as indexer.
+function isWebMode(): boolean {
+  const mode = process.env.DB_MODE;
+  if (mode === "web") return true;
+  if (mode === "indexer") return false;
+  return Boolean(process.env.NEXT_RUNTIME);
+}
 
 // the pool is created lazily on first use, not at module import. `next build`'s
 // "collect page data" phase imports every route module (even force-dynamic ones
@@ -30,12 +43,26 @@ function connect(): postgres.Sql {
   if (pool) return pool;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set, see .env.example");
-  pool = postgres(url, {
-    max: PG_POOL_MAX,
-    idle_timeout: 30,
-    connect_timeout: 15,
-    onnotice: () => {},
-  });
+  // web: one connection per function instance and NO prepared statements — the
+  // transaction pooler multiplexes a connection per statement and rejects
+  // prepared statements, which surfaces as CONNECTION_CLOSED; a pool of 10 per
+  // instance exhausts the pooler and surfaces as ECHECKOUTTIMEOUT. a short idle
+  // timeout releases the connection back to the pooler quickly between requests.
+  // indexer: a real pool with prepared statements on the session pooler.
+  pool = isWebMode()
+    ? postgres(url, {
+        max: 1,
+        prepare: false,
+        idle_timeout: 10,
+        connect_timeout: 15,
+        onnotice: () => {},
+      })
+    : postgres(url, {
+        max: PG_POOL_MAX,
+        idle_timeout: 30,
+        connect_timeout: 15,
+        onnotice: () => {},
+      });
   return pool;
 }
 
