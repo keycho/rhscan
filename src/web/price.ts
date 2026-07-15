@@ -22,6 +22,10 @@ export async function getEthMarket(): Promise<EthMarket> {
       {
         next: { revalidate: 60 },
         headers: { accept: "application/json" },
+        // hard cap so a slow/hung coingecko can never stall the page. this call
+        // runs in the layout on every route; without a timeout a hung fetch is a
+        // 300s serverless timeout, not a graceful null.
+        signal: AbortSignal.timeout(4000),
       },
     );
     if (!res.ok) return { usd: null, change24h: null, marketCap: null };

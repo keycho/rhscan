@@ -2,10 +2,9 @@ import { Container } from "@/components/primitives";
 import { SearchBox } from "@/components/SearchBox";
 import { StatsCard } from "@/components/StatsCard";
 import { LiveHead } from "@/components/LiveHead";
-import { getNetworkStats, txPerDay } from "@/src/web/stats";
 import { latestBlocks, latestTransactions } from "@/src/web/lists";
 import { getEthMarket } from "@/src/web/price";
-import { loadWatermarks } from "@/src/web/cache";
+import { loadWatermarks, loadNetworkStats, loadTxPerDay } from "@/src/web/cache";
 
 // db-backed: render at request time so `next build` runs no query (static
 // generation would hit the transaction pooler and time out). the head lists
@@ -16,10 +15,10 @@ export const revalidate = 0;
 export default async function Home() {
   const [eth, stats, blocks, txns, chart, wm] = await Promise.all([
     getEthMarket(),
-    getNetworkStats(),
+    loadNetworkStats(),
     latestBlocks(12),
     latestTransactions(12),
-    txPerDay(14),
+    loadTxPerDay(),
     loadWatermarks(),
   ]);
 

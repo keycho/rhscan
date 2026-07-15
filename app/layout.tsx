@@ -4,7 +4,7 @@ import { UtilityStrip } from "@/components/UtilityStrip";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getEthUsd } from "@/src/web/price";
-import { getNetworkStats } from "@/src/web/stats";
+import { loadNetworkStats } from "@/src/web/cache";
 
 export const metadata: Metadata = {
   title: {
@@ -26,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // best-effort: a failure renders a dash, never blocks the page.
   const [ethUsd, stats] = await Promise.all([
     getEthUsd().catch(() => null),
-    getNetworkStats().catch(() => null),
+    loadNetworkStats().catch(() => null),
   ]);
 
   return (

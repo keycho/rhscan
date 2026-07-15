@@ -10,6 +10,7 @@
 import { unstable_cache } from "next/cache";
 import { resolveBlock, type BlockResult } from "../resolve.js";
 import { getWatermarks, type Watermarks } from "./watermarks.js";
+import { getNetworkStats, txPerDay, type NetworkStats, type DayBucket } from "./stats.js";
 import { checkHolderDrift, type DriftReport } from "./drift.js";
 import type { Holder } from "../holders.js";
 
@@ -23,6 +24,26 @@ export const loadWatermarks = unstable_cache(
   async (): Promise<Watermarks> => getWatermarks(),
   ["watermarks"],
   { revalidate: 3 },
+);
+
+// network stats feed the utility strip (rendered by the layout on EVERY route)
+// and the home stats card. the tps/median-gas aggregates and the reltuples
+// estimate are the same for all callers within a few seconds, so cache them:
+// without this the layout re-runs them on every request, and under the
+// serverless max:1 connection a single slow run stalls the whole page. a cache
+// hit means the layout touches the db for stats not at all.
+export const loadNetworkStats = unstable_cache(
+  async (): Promise<NetworkStats> => getNetworkStats(),
+  ["network-stats"],
+  { revalidate: 10 },
+);
+
+// the per-day tx chart aggregates the entire (windowed) blocks table. it changes
+// slowly and is home-only, so cache it well beyond a single request.
+export const loadTxPerDay = unstable_cache(
+  async (): Promise<DayBucket[]> => txPerDay(14),
+  ["tx-per-day"],
+  { revalidate: 60 },
 );
 
 // a block by number, cached for a year once it is below the reorg depth. a
