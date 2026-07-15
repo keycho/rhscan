@@ -7,7 +7,7 @@
 
 import { formatGwei, formatNumber, formatUsd } from "@/src/web/format";
 import type { NetworkStats } from "@/src/web/stats";
-import type { DayBucket } from "@/src/web/stats";
+import type { TxChartData } from "@/src/web/stats";
 import type { EthMarket } from "@/src/web/price";
 import type { Watermarks } from "@/src/web/watermarks";
 import { Sparkline } from "@/components/Sparkline";
@@ -38,22 +38,24 @@ export function StatsCard({
   eth,
   stats,
   watermarks,
-  buckets,
+  chart,
 }: {
   eth: EthMarket;
   stats: NetworkStats;
   watermarks: Watermarks;
-  buckets: DayBucket[];
+  chart: TxChartData;
 }) {
   const change = pct(eth.change24h);
 
-  const series = buckets.map((b) => b.txCount);
+  const series = chart.buckets.map((b) => b.txCount);
   const first = series[0];
   const last = series[series.length - 1];
   const trend =
     series.length >= 2 && first != null && first > 0 && last != null
       ? pct(((last - first) / first) * 100)
       : { text: "", color: "var(--muted)" };
+  // label the span by bucket: hourly buckets read "24H" (intraday), daily "ND".
+  const chartLabel = chart.granularity === "hour" ? "24H" : `${series.length}D`;
 
   const head = watermarks.head ?? stats.head;
   const floor = watermarks.windowFloor ?? watermarks.backfillFloor;
@@ -117,7 +119,7 @@ export function StatsCard({
         <div className="border-t border-border-hair px-[18px] py-4 sm:col-span-2 lg:col-span-1 lg:border-t-0">
           <div className="mb-2 flex items-center justify-between">
             <span className="mono text-[10px] tracking-[0.05em] text-label">
-              TX HISTORY · {series.length}D
+              TX HISTORY · {chartLabel}
             </span>
             {trend.text && (
               <span className="mono text-[10px]" style={{ color: trend.color }}>
@@ -125,7 +127,7 @@ export function StatsCard({
               </span>
             )}
           </div>
-          <Sparkline values={series} id="tx-history" />
+          <Sparkline values={series} id="tx-history" unit={chart.granularity} />
         </div>
       </div>
 

@@ -5,6 +5,12 @@
 //   tokens    resolve token metadata (runs forever)
 //   prune     roll the window forward by dropping partitions (runs forever)
 //   holders   hydrate token holders and maintain stats (runs forever)
+//   live      tail + token metadata + partition maintainer, but NOT the heavy
+//             backfill or holders replay. this is the production railway mode:
+//             it follows the head and resolves fresh token names/symbols/
+//             decimals/total-supply (so tokens stop showing "unnamed token")
+//             while keeping db + rpc load light. holder snapshots are built
+//             lazily by on-view hydration in the web app, not by a worker here.
 //   both      all of the above plus the partition maintainer (default)
 //
 // the cold-path resolver (resolve.ts) and the holders read helpers are libraries
@@ -47,18 +53,18 @@ async function main(): Promise<void> {
 
   const tasks: Promise<void>[] = [];
   if (mode === "backfill" || mode === "both") tasks.push(runBackfill(stopped));
-  if (mode === "tail" || mode === "both") tasks.push(runTail(stopped));
-  if (mode === "tokens" || mode === "both") tasks.push(runTokens(stopped));
+  if (mode === "tail" || mode === "both" || mode === "live") tasks.push(runTail(stopped));
+  if (mode === "tokens" || mode === "both" || mode === "live") tasks.push(runTokens(stopped));
   if (mode === "prune" || mode === "both") tasks.push(runPrune(stopped));
   if (mode === "holders" || mode === "both") tasks.push(runHolders(stopped));
   // the partition maintainer runs alongside anything that writes near the head.
-  if (mode === "tail" || mode === "backfill" || mode === "both") {
+  if (mode === "tail" || mode === "backfill" || mode === "both" || mode === "live") {
     tasks.push(runPartitionMaintainer(stopped));
   }
 
   if (tasks.length === 0) {
     throw new Error(
-      `unknown MODE '${mode}', expected backfill|tail|both|tokens|prune|holders`,
+      `unknown MODE '${mode}', expected backfill|tail|both|tokens|prune|holders|live`,
     );
   }
 

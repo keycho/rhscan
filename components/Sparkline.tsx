@@ -7,10 +7,13 @@ export function Sparkline({
   values,
   height = 84,
   id = "spark",
+  unit = "day",
 }: {
   values: number[];
   height?: number;
   id?: string;
+  // the period each bar represents, for honest labels/tooltips ("day" | "hour").
+  unit?: string;
 }) {
   void id;
   const w = 320;
@@ -45,7 +48,7 @@ export function Sparkline({
       preserveAspectRatio="none"
       style={{ width: "100%", height, display: "block" }}
       role="img"
-      aria-label={`transactions per day across ${n} indexed day${n === 1 ? "" : "s"}`}
+      aria-label={`transactions per ${unit} across ${n} indexed ${unit}${n === 1 ? "" : "s"}`}
     >
       {values.map((v, i) => {
         // a day with any activity always shows a visible bar; a zero day a sliver.
@@ -62,7 +65,7 @@ export function Sparkline({
             rx="1.5"
             fill="var(--green)"
           >
-            <title>{`day ${i + 1} of ${n}: ${v.toLocaleString("en-US")} txns`}</title>
+            <title>{`${unit} ${i + 1} of ${n}: ${v.toLocaleString("en-US")} txns`}</title>
           </rect>
         );
       })}

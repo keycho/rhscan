@@ -94,9 +94,17 @@ export async function getNetworkStats(): Promise<NetworkStats> {
 // covering index blocks_home_stats_idx (migration 0004), runs index-only. the ui
 // frames whatever days come back against a 14-day axis and discloses the window.
 export interface DayBucket {
-  day: string; // yyyy-mm-dd (utc)
+  day: string; // yyyy-mm-dd, or yyyy-mm-ddThh:00 when bucketed by hour (utc)
   txCount: number;
   blocks: number;
+}
+
+export interface TxChartData {
+  // "hour" when the indexed span is short (a day or two of this fast chain), so
+  // the chart shows ~24 intraday bars instead of one lonely daily bar; "day"
+  // once the span is wide enough for daily buckets to be meaningful.
+  granularity: "hour" | "day";
+  buckets: DayBucket[];
 }
 
 // how many recent blocks the chart aggregates. one partition's worth by default,
@@ -105,9 +113,27 @@ export interface DayBucket {
 // vacuumed, to widen the chart back across the full window.
 const CHART_BLOCKS = Number(process.env.CHART_BLOCKS ?? 500_000);
 
-export async function txPerDay(): Promise<DayBucket[]> {
-  const rows = await sql<{ day: Date; txs: string | null; blks: string }[]>`
-    select date_trunc('day', timestamp) as day,
+// bucket by hour when the indexed span is at or below this many days.
+const HOURLY_SPAN_DAYS = 2;
+
+export async function txPerDay(): Promise<TxChartData> {
+  // the indexed span of the bounded range decides the bucket size. this reads
+  // min/max over the same block_number-bounded slice (index range read, prunes to
+  // the recent partition), NOT a timestamp scan — the whole point of the number
+  // bound. a fast chain packs the 500k-block slice into ~a day, so daily buckets
+  // collapse to one bar; hourly buckets give a real intraday shape.
+  const [span] = await sql<{ lo: Date | null; hi: Date | null }[]>`
+    select min(timestamp) as lo, max(timestamp) as hi
+      from blocks
+     where number > (select max(number) from blocks) - ${CHART_BLOCKS}
+  `;
+  const lo = span?.lo ? new Date(span.lo).getTime() : null;
+  const hi = span?.hi ? new Date(span.hi).getTime() : null;
+  const spanDays = lo != null && hi != null ? (hi - lo) / 86_400_000 : 0;
+  const granularity: "hour" | "day" = spanDays <= HOURLY_SPAN_DAYS ? "hour" : "day";
+
+  const rows = await sql<{ bucket: Date; txs: string | null; blks: string }[]>`
+    select date_trunc(${granularity}, timestamp) as bucket,
            sum(tx_count) as txs,
            count(*) as blks
       from blocks
@@ -115,9 +141,11 @@ export async function txPerDay(): Promise<DayBucket[]> {
      group by 1
      order by 1
   `;
-  return rows.map((r) => ({
-    day: new Date(r.day).toISOString().slice(0, 10),
+  const buckets = rows.map((r) => ({
+    // day → yyyy-mm-dd, hour → yyyy-mm-ddThh:00 (utc), both sortable as labels.
+    day: new Date(r.bucket).toISOString().slice(0, granularity === "hour" ? 13 : 10),
     txCount: Number(r.txs ?? 0),
     blocks: Number(r.blks),
   }));
+  return { granularity, buckets };
 }

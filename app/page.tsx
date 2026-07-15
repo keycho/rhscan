@@ -26,7 +26,7 @@ export default async function Home() {
     })),
     latestBlocks(12).catch(() => []),
     latestTransactions(12).catch(() => []),
-    loadTxPerDay().catch(() => []),
+    loadTxPerDay().catch(() => ({ granularity: "hour" as const, buckets: [] })),
     loadWatermarks().catch(() => ({
       head: null,
       headUpdatedAt: null,
@@ -60,7 +60,7 @@ export default async function Home() {
       </div>
 
       <Container className="pb-8">
-        <StatsCard eth={eth} stats={stats} watermarks={wm} buckets={chart} />
+        <StatsCard eth={eth} stats={stats} watermarks={wm} chart={chart} />
         <LiveHead initial={{ blocks, txns }} />
       </Container>
     </div>

@@ -17,16 +17,23 @@ import type { DriftReport } from "@/src/web/drift";
 // table lives in a ScrollX, so narrow viewports scroll rather than overlap.
 const COLS = "grid-cols-[48px_minmax(340px,1fr)_180px_190px_76px]";
 
-// balance / total as a percentage number, exact via bigint.
-function pctNum(balance: string, total: string | null): number {
-  if (!total) return 0;
-  const t = BigInt(total);
-  if (t <= 0n) return 0;
-  return Number((BigInt(balance) * 1_000_000n) / t) / 10_000;
+// balance / basis as a percentage number, exact via bigint.
+function pctNum(balance: string, basis: bigint): number {
+  if (basis <= 0n) return 0;
+  return Number((BigInt(balance) * 1_000_000n) / basis) / 10_000;
 }
 
 function pctText(p: number): string {
   return `${p.toFixed(p < 0.01 ? 4 : 2)}%`;
+}
+
+// safe bigint parse: balances come from the db as decimal strings.
+function toBig(s: string): bigint {
+  try {
+    return BigInt(s);
+  } catch {
+    return 0n;
+  }
 }
 
 export function HoldersTable({
@@ -42,7 +49,19 @@ export function HoldersTable({
 }) {
   if (holders.length === 0) return <Empty>no holders indexed yet.</Empty>;
   const dp = decimals ?? 18;
-  const pcts = holders.map((h) => pctNum(h.balance, totalSupply));
+
+  // percentages are share of supply when total supply is known. when it is not
+  // (metadata unresolved), a fixed total-supply basis makes every row render
+  // 0.0000% — worse than useless. fall back to the sum of the indexed holder
+  // balances shown here, so the column shows each holder's real share of the
+  // ranked set instead of a misleading zero. the header switches to say so.
+  const supply = totalSupply ? toBig(totalSupply) : 0n;
+  const holdersSum = holders.reduce((acc, h) => acc + toBig(h.balance), 0n);
+  const supplyKnown = supply > 0n;
+  const basis = supplyKnown ? supply : holdersSum;
+  const pctLabel = supplyKnown ? "percentage" : "% of shown";
+
+  const pcts = holders.map((h) => pctNum(h.balance, basis));
   const maxPct = Math.max(1e-9, ...pcts);
 
   return (
@@ -54,7 +73,16 @@ export function HoldersTable({
           <span>rank</span>
           <span>address</span>
           <span className="text-right">quantity</span>
-          <span className="text-right">percentage</span>
+          <span
+            className="text-right"
+            title={
+              supplyKnown
+                ? "share of total supply"
+                : "total supply unresolved — share of the indexed holder balances shown here"
+            }
+          >
+            {pctLabel}
+          </span>
           <span className="text-right">check</span>
         </div>
 

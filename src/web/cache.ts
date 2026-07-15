@@ -10,7 +10,7 @@
 import { unstable_cache } from "next/cache";
 import { resolveBlock, type BlockResult } from "../resolve.js";
 import { getWatermarks, type Watermarks } from "./watermarks.js";
-import { getNetworkStats, txPerDay, type NetworkStats, type DayBucket } from "./stats.js";
+import { getNetworkStats, txPerDay, type NetworkStats, type TxChartData } from "./stats.js";
 import { checkHolderDrift, type DriftReport } from "./drift.js";
 import type { Holder } from "../holders.js";
 
@@ -62,8 +62,8 @@ export const loadWatermarks = memoTTL((): Promise<Watermarks> => getWatermarks()
 // network stats feed the utility strip (layout, every route) and the home card.
 export const loadNetworkStats = memoTTL((): Promise<NetworkStats> => getNetworkStats(), 15_000);
 
-// the per-day tx chart changes slowly and is home-only.
-export const loadTxPerDay = memoTTL((): Promise<DayBucket[]> => txPerDay(), 600_000);
+// the tx-history chart changes slowly and is home-only.
+export const loadTxPerDay = memoTTL((): Promise<TxChartData> => txPerDay(), 600_000);
 
 // a block by number, cached for a year once it is below the reorg depth. a
 // head-adjacent block is read fresh so a just-mined block is never stale.
