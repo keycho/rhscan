@@ -1,6 +1,7 @@
 "use client";
 
 import { usePof } from "@/lib/store";
+import { INDEPENDENCE_NOTICE, LegalLinks } from "@/components/legal";
 import { PofMark } from "@/components/ui";
 
 const DOC_LINKS = [
@@ -61,9 +62,15 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-2 px-4 py-3 text-3xs text-faint">
-          <p>© 2026 proof of flywheel · every trade turns the wheel</p>
-          <p>reserve balances publish on-chain at launch</p>
+        <div className="mx-auto max-w-page px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <LegalLinks className="-ml-1.5 flex flex-wrap" />
+            <p className="text-3xs text-faint">reserve balances publish on-chain at launch</p>
+          </div>
+          <p className="mt-3 max-w-3xl text-3xs leading-4 text-faint">{INDEPENDENCE_NOTICE}</p>
+          <p className="mt-2 text-3xs text-faint">
+            © 2026 proof of flywheel · every trade turns the wheel
+          </p>
         </div>
       </div>
     </footer>

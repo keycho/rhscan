@@ -14,7 +14,7 @@ export function Hero() {
         launch the loop. route the fees. keep it turning.
       </p>
       <p className="mt-6 text-sm font-bold text-amber">
-        [ fees in. liquidity grows. supply burns. holders earn. ]
+        [ claimed rewards in. liquidity grows. supply burns. holders earn. ]
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <button onClick={() => openModal("launch")} className={btn.solid}>

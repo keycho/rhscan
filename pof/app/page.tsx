@@ -5,6 +5,7 @@ import { TopNav } from "@/components/top-nav";
 import { Tickers } from "@/components/tickers";
 import { Hero } from "@/components/hero";
 import { FeaturedFlywheel } from "@/components/featured-flywheel";
+import { CycleAction } from "@/components/cycle-action";
 import { StatsRow } from "@/components/stats-row";
 import { HowItWorks } from "@/components/how-it-works";
 import { AllocationBar } from "@/components/allocation-bar";
@@ -34,6 +35,7 @@ export default function Page() {
       <main>
         <Hero />
         <FeaturedFlywheel />
+        <CycleAction />
         <StatsRow />
         <HowItWorks />
         <AllocationBar />

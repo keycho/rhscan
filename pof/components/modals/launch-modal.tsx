@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Lock, Rocket } from "lucide-react";
+import Link from "next/link";
+import { Check, Lock, Rocket } from "lucide-react";
 import { Modal } from "./modal";
 import { usePof } from "@/lib/store";
 import { ALLOCATION_MODES, CYCLE_TRIGGERS, MODE_NOTES } from "@/data/mock-data";
@@ -15,28 +16,33 @@ const inputCls =
   "h-9 w-full rounded border border-line bg-bg px-3 text-xs text-text placeholder:text-faint outline-none transition focus:border-accent";
 
 export function LaunchModal() {
-  const { user, wallet, gate, requestDeploy, closeModal } = usePof();
+  const { user, wallet, gate, requestDeploy, closeModal, toast } = usePof();
   const [address, setAddress] = useState("");
   const [name, setName] = useState("");
   const [mode, setMode] = useState<EngineMode>("Momentum");
   const [trigger, setTrigger] = useState(CYCLE_TRIGGERS[0]);
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const effectiveSlug = slugTouched ? slug : slugify(name);
   const slices = ALLOCATION_MODES[mode];
   const ready = Boolean(user && wallet);
 
   const submit = () =>
-    gate("wallet", () =>
+    gate("wallet", () => {
+      if (!confirmed) {
+        toast("confirm creator wallet authorisation first", "info");
+        return;
+      }
       requestDeploy({
         tokenAddress: address.trim(),
         tokenName: name.trim() || "Untitled Engine",
         mode,
         trigger,
         slug: effectiveSlug || "new-engine",
-      })
-    );
+      });
+    });
 
   return (
     <Modal
@@ -140,25 +146,52 @@ export function LaunchModal() {
         </Field>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
-        <p className="text-3xs text-faint">
-          {!user
-            ? "> sign in to configure your engine"
-            : !wallet
-              ? "> connect a wallet to deploy"
-              : "> config ready — engine deploys to your slot"}
-        </p>
-        <button onClick={submit} className={btn.solid}>
-          {ready ? (
-            <>
-              <Rocket size={13} /> review deployment
-            </>
-          ) : (
-            <>
-              <Lock size={12} /> create engine
-            </>
-          )}
+      <div className="mt-4 border-t border-line pt-3">
+        <button onClick={() => setConfirmed((v) => !v)} className="flex w-full items-start gap-2 text-left">
+          <span
+            className={cx(
+              "mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition",
+              confirmed ? "border-accent bg-accent text-accent-ink" : "border-line-strong"
+            )}
+            role="checkbox"
+            aria-checked={confirmed}
+          >
+            {confirmed ? <Check size={11} /> : null}
+          </span>
+          <span className="text-3xs leading-4 text-muted">
+            I confirm that I control or am authorised to use this token&apos;s creator wallet, and
+            I accept the{" "}
+            <Link href="/terms" className="text-secondary underline underline-offset-2 hover:text-accent">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/risks" className="text-secondary underline underline-offset-2 hover:text-accent">
+              Risk Disclosure
+            </Link>
+            .
+          </span>
         </button>
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="max-w-56 text-3xs leading-4 text-faint">
+            {!user
+              ? "> sign in to configure your engine"
+              : !wallet
+                ? "> connect a wallet to activate"
+                : "> returns are never guaranteed · see risk disclosure"}
+          </p>
+          <button onClick={submit} className={btn.solid}>
+            {ready ? (
+              <>
+                <Rocket size={13} /> review deployment
+              </>
+            ) : (
+              <>
+                <Lock size={12} /> create engine
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </Modal>
   );

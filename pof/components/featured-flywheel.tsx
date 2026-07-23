@@ -11,7 +11,7 @@ export function FeaturedFlywheel() {
   const routed = useCountUp(feesRouted);
 
   const cells = [
-    { value: `${fmt(routed, 2)} SOL`, label: "routed" },
+    { value: `${fmt(routed, 2)} SOL`, label: "claimed rewards routed" },
     { value: `${fmt(feesRouted * 0.35, 2)} SOL`, label: "to liquidity" },
     { value: `${GENESIS.burnedSupply} tokens`, label: "burned" },
     { value: `${fmt(feesRouted * 0.105, 2)} SOL`, label: "to holders" },
@@ -52,10 +52,10 @@ export function FeaturedFlywheel() {
           />
         </div>
 
-        <p className="border-y border-line bg-panel2/60 px-4 py-2 text-center text-2xs text-secondary">
-          fees <span className="text-accent">→</span> liquidity <span className="text-accent">→</span>{" "}
-          burn <span className="text-accent">→</span> rewards <span className="text-accent">→</span>{" "}
-          momentum
+        <p className="border-y border-line bg-panel2/60 px-4 py-2 text-center text-3xs text-secondary">
+          claim on pump.fun <span className="text-accent">→</span> deposit rewards{" "}
+          <span className="text-accent">→</span> execute routing cycle{" "}
+          <span className="text-accent">→</span> liquidity / burns / holders / treasury
         </p>
 
         <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">

@@ -69,7 +69,8 @@ const initialSim: SimState = {
 
 type SimAction =
   | { type: "TICK"; rand: [number, number, number] }
-  | { type: "PUSH_ACTIVITY"; tag: string; text: string; tone: ActivityEntry["tone"] };
+  | { type: "PUSH_ACTIVITY"; tag: string; text: string; tone: ActivityEntry["tone"] }
+  | { type: "EXECUTE_CYCLE"; amount: number };
 
 function pushEntry(
   state: SimState,
@@ -88,6 +89,54 @@ function simReducer(state: SimState, action: SimAction): SimState {
       ...state,
       ...pushEntry(state, { tag: action.tag, text: action.text, tone: action.tone }, state.tick),
     };
+  }
+
+  // a creator deposit executes the routing cycle immediately
+  if (action.type === "EXECUTE_CYCLE") {
+    const epoch = state.epoch + 1;
+    const amount = action.amount;
+    const settled = state.cycles[0];
+    const newCycle: Cycle = {
+      epoch,
+      feesIn: amount,
+      liquidity: amount * 0.35,
+      burn: amount * 0.2,
+      community: amount * 0.105,
+      status: "Processing",
+      atTick: state.tick,
+    };
+    let next: SimState = {
+      ...state,
+      epoch,
+      nextCycle: 480,
+      totalCycles: state.totalCycles + 1,
+      feesRouted: state.feesRouted + amount,
+      cycles: [
+        newCycle,
+        ...state.cycles.map((c, i) => (i === 0 ? { ...c, status: "Complete" as const } : c)),
+      ].slice(0, 12),
+      feesSeries: [
+        ...state.feesSeries,
+        { epoch: settled.epoch, fees: settled.feesIn },
+      ].slice(-24),
+    };
+    next = {
+      ...next,
+      ...pushEntry(
+        next,
+        { tag: "reserve", text: `creator deposit received · ${amount.toFixed(2)} SOL`, tone: "neutral" },
+        state.tick
+      ),
+    };
+    next = {
+      ...next,
+      ...pushEntry(
+        next,
+        { tag: "cycle", text: `cycle #${epoch} executing — routing ${amount.toFixed(2)} SOL`, tone: "green" },
+        state.tick
+      ),
+    };
+    return next;
   }
 
   const [r1, r2, r3] = action.rand;
@@ -172,6 +221,8 @@ interface PofStore extends SimState {
   requestDeploy: (cfg: DeployConfig) => void;
   completeDeploy: (cfg: DeployConfig) => void;
   logActivity: (tag: string, text: string, tone?: ActivityEntry["tone"]) => void;
+  /** deposit claimed creator rewards and execute the routing cycle */
+  depositAndExecute: (amount: number) => boolean;
 }
 
 const PofContext = createContext<PofStore | null>(null);
@@ -328,6 +379,18 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
     setModal("deploy");
   }, []);
 
+  const depositAndExecute = useCallback(
+    (amount: number) => {
+      if (!wallet) return false;
+      if (!(amount > 0) || amount > wallet.claimedRewards) return false;
+      setWallet({ ...wallet, claimedRewards: wallet.claimedRewards - amount });
+      dispatch({ type: "EXECUTE_CYCLE", amount });
+      toast(`cycle executed — ${amount.toFixed(2)} SOL routed`);
+      return true;
+    },
+    [wallet, toast]
+  );
+
   const completeDeploy = useCallback(
     (cfg: DeployConfig) => {
       const slug = cfg.slug || "new-engine";
@@ -371,6 +434,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
       requestDeploy,
       completeDeploy,
       logActivity,
+      depositAndExecute,
     }),
     [
       sim,
@@ -393,6 +457,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
       requestDeploy,
       completeDeploy,
       logActivity,
+      depositAndExecute,
     ]
   );
 

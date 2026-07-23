@@ -11,7 +11,7 @@ export function Tickers() {
   const settled = cycles.find((c) => c.status === "Complete");
 
   const pills = [
-    "flywheel live · fees → liquidity → burn → rewards",
+    "claim on pump.fun → deposit rewards → execute routing cycle",
     settled ? `cycle #${settled.epoch} complete · ${fmt(settled.feesIn, 2)} SOL routed` : "",
     `genesis engine active · ${fmt(speed, 0)}% wheel speed`,
     "slot board open · be the next flywheel",

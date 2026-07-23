@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Loader2, Rocket } from "lucide-react";
 import { Modal } from "./modal";
 import { usePof } from "@/lib/store";
@@ -98,7 +99,13 @@ export function DeployModal() {
             </div>
           ) : null}
 
-          <div className="mt-4 flex items-center justify-end gap-3">
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="max-w-56 text-3xs leading-4 text-faint">
+              token performance, liquidity and returns are never guaranteed ·{" "}
+              <Link href="/risks" className="underline underline-offset-2 hover:text-secondary">
+                risk disclosure
+              </Link>
+            </p>
             <button onClick={deploy} disabled={phase === "deploying"} className={btn.solid}>
               {phase === "deploying" ? (
                 <>

@@ -135,10 +135,10 @@ export const FEES_SERIES_SEED: FeesPoint[] = [
 
 export const ACTIVITY_SEED: ActivityEntry[] = [
   { id: 8, tag: "cycle", text: "epoch #12 opened", tone: "green", atTick: -122 },
-  { id: 7, tag: "reserve", text: "0.038 SOL added to reserve", tone: "neutral", atTick: -180 },
+  { id: 7, tag: "reserve", text: "creator deposit received · 0.038 SOL", tone: "neutral", atTick: -180 },
   { id: 6, tag: "engine", text: "flywheel speed increased to 92%", tone: "green", atTick: -260 },
   { id: 5, tag: "burn", text: "burn tranche staged for epoch #12", tone: "amber", atTick: -410 },
-  { id: 4, tag: "reserve", text: "community tranche prepared — 0.06 SOL", tone: "neutral", atTick: -520 },
+  { id: 4, tag: "reserve", text: "holder tranche prepared — 0.06 SOL", tone: "neutral", atTick: -520 },
   { id: 3, tag: "launch", text: "launch slot #02 opened for applications", tone: "amber", atTick: -700 },
   { id: 2, tag: "cycle", text: "epoch #11 settled — 0.71 SOL routed", tone: "green", atTick: -740 },
   { id: 1, tag: "engine", text: "genesis engine ignited — public dashboard live", tone: "green", atTick: -880 },
@@ -146,15 +146,15 @@ export const ACTIVITY_SEED: ActivityEntry[] = [
 
 // templates cycled by the simulation ticker; {r} is replaced with a jittered value
 export const ACTIVITY_POOL: { tag: string; tone: ActivityEntry["tone"]; text: (r: number) => string }[] = [
-  { tag: "reserve", tone: "neutral", text: (r) => `${(0.04 + r * 0.09).toFixed(3)} SOL added to reserve` },
+  { tag: "reserve", tone: "neutral", text: (r) => `creator deposit received · ${(0.04 + r * 0.09).toFixed(3)} SOL` },
   { tag: "engine", tone: "green", text: (r) => `flywheel speed holding ${(91 + r * 2).toFixed(1)}%` },
   { tag: "cycle", tone: "green", text: (r) => `cycle checkpoint — ${(0.05 + r * 0.15).toFixed(2)} SOL routed to liquidity` },
   { tag: "burn", tone: "amber", text: (r) => `${(0.01 + r * 0.05).toFixed(3)} SOL staged for burn tranche` },
-  { tag: "reserve", tone: "neutral", text: (r) => `acquisition reserve topped up +${(0.02 + r * 0.06).toFixed(3)} SOL` },
+  { tag: "reserve", tone: "neutral", text: (r) => `growth reserve topped up +${(0.02 + r * 0.06).toFixed(3)} SOL` },
   { tag: "engine", tone: "neutral", text: () => "allocation engine rebalance check passed" },
   { tag: "launch", tone: "amber", text: () => "launch slot inquiry received — queue open" },
   { tag: "cycle", tone: "green", text: (r) => `momentum sample recorded — score ${(85 + r * 4).toFixed(0)}` },
-  { tag: "reserve", tone: "neutral", text: (r) => `community tranche accruing — ${(0.03 + r * 0.05).toFixed(2)} SOL pending` },
+  { tag: "reserve", tone: "neutral", text: (r) => `holder tranche accruing — ${(0.03 + r * 0.05).toFixed(2)} SOL pending` },
   { tag: "engine", tone: "neutral", text: () => "public dashboard heartbeat ok" },
   { tag: "burn", tone: "amber", text: () => "burn tranche staged — settles next cycle" },
   { tag: "launch", tone: "amber", text: () => "genesis template forked to draft engine" },
@@ -178,6 +178,7 @@ export const DEMO_WALLET: Omit<WalletState, "provider"> = {
   address: "7pOF...wheeL",
   balance: 18.42,
   network: "Solana",
+  claimedRewards: 2.4,
 };
 
 

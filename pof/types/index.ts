@@ -40,6 +40,8 @@ export interface WalletState {
   balance: number;
   network: string;
   provider: string;
+  /** creator rewards already claimed on pump.fun, available to deposit */
+  claimedRewards: number;
 }
 
 export type EngineStatus = "live" | "draft" | "deployed";

@@ -12,7 +12,7 @@ export function StatsRow() {
   const cycles = useCountUp(totalCycles);
 
   const stats = [
-    { value: `${fmt(routed, 2)} SOL`, label: "routed" },
+    { value: `${fmt(routed, 2)} SOL`, label: "claimed rewards routed" },
     { value: fmt(cycles), label: "completed cycles" },
     { value: GENESIS.burnedSupply, label: "tokens burned" },
     { value: "1", label: "live flywheel" },

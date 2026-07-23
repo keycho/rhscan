@@ -4,19 +4,19 @@ import { Card } from "@/components/ui";
 
 const STEPS = [
   {
-    num: "01 / Launch",
-    body: "Connect a wallet, choose a token and configure how incoming fees should be routed.",
-    footer: "> deploy engine · one transaction",
+    num: "01 / Connect",
+    body: "Connect the wallet that created the token on Pump.fun.",
+    footer: "> verify creator wallet · detect eligible token",
   },
   {
-    num: "02 / Route",
-    body: "Every cycle automatically divides incoming value between liquidity, burns, holders and growth.",
-    footer: "> transparent allocations · onchain",
+    num: "02 / Configure",
+    body: "Choose how claimed creator rewards will be split between liquidity, burns, holder rewards and treasury.",
+    footer: "> set routing weights · save configuration",
   },
   {
-    num: "03 / Turn",
-    body: "Each completed cycle strengthens the next one. More activity creates more momentum.",
-    footer: "> fees in · momentum out",
+    num: "03 / Claim & Route",
+    body: "Claim creator rewards from Pump.fun, then deposit them into the flywheel to execute the next cycle.",
+    footer: "> claimed rewards in · token momentum out",
   },
 ];
 

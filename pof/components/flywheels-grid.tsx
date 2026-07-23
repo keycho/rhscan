@@ -24,7 +24,7 @@ const BOARD: BoardCard[] = [
     initials: "",
     name: "Genesis Wheel",
     ticker: "$POF",
-    desc: "pump.fun fees routed through the genesis loop",
+    desc: "claimed creator rewards routed through the genesis loop",
     status: "live",
   },
   { id: "slot_02", initials: "02", name: "Open Slot #02", ticker: "———", desc: "next launch window — today", status: "open" },
