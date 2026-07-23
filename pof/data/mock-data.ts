@@ -16,6 +16,10 @@ import type {
 // note: reserve balances are deliberately NOT mocked. a reserve balance is a
 // claim about real held funds, so the UI renders "—" with "publishes on-chain
 // at launch" until an engine reports real balances.
+//
+// the rest of the genesis numbers are kept at a believable just-launched
+// scale (~2 hours of cycles, sub-SOL flows) so the site reads as credible
+// on launch day rather than claiming months of invented history.
 export const GENESIS = {
   tokenName: "Genesis Wheel",
   ticker: "$POF",
@@ -24,15 +28,15 @@ export const GENESIS = {
   network: "Solana",
   platform: "Pump.fun",
   mode: "Momentum" as EngineMode,
-  epoch: 184,
+  epoch: 12,
   nextCycleSeconds: 261, // 04:21
-  feesRouted: 184.2,
-  totalCycles: 382,
+  feesRouted: 6.1,
+  totalCycles: 11,
   flywheelSpeed: 92,
   momentumScore: 87,
-  totalRoutedValue: "$84.2K",
-  tokensRouted: "12.4M",
-  burnedSupply: "3.42M",
+  totalRoutedValue: "$1.0K",
+  tokensRouted: "1.2M",
+  burnedSupply: "0.31M",
 };
 
 // ---------------------------------------------------------------------------
@@ -100,22 +104,22 @@ export const MODE_NOTES: Record<EngineMode, string> = {
 // ---------------------------------------------------------------------------
 
 export const CYCLE_SEED: Cycle[] = [
-  { epoch: 184, feesIn: 3.82, liquidity: 1.34, burn: 0.82, community: 0.41, status: "Processing", atTick: -120 },
-  { epoch: 183, feesIn: 4.1, liquidity: 1.44, burn: 0.88, community: 0.44, status: "Complete", atTick: -720 },
-  { epoch: 182, feesIn: 2.71, liquidity: 0.95, burn: 0.58, community: 0.29, status: "Complete", atTick: -1260 },
-  { epoch: 181, feesIn: 3.24, liquidity: 1.13, burn: 0.69, community: 0.35, status: "Complete", atTick: -1830 },
-  { epoch: 180, feesIn: 4.62, liquidity: 1.62, burn: 0.97, community: 0.49, status: "Complete", atTick: -2410 },
-  { epoch: 179, feesIn: 3.05, liquidity: 1.07, burn: 0.64, community: 0.33, status: "Complete", atTick: -2980 },
-  { epoch: 178, feesIn: 2.44, liquidity: 0.85, burn: 0.52, community: 0.26, status: "Complete", atTick: -3560 },
-  { epoch: 177, feesIn: 3.91, liquidity: 1.37, burn: 0.83, community: 0.42, status: "Complete", atTick: -4140 },
-  { epoch: 176, feesIn: 3.48, liquidity: 1.22, burn: 0.74, community: 0.37, status: "Complete", atTick: -4720 },
-  { epoch: 175, feesIn: 2.96, liquidity: 1.04, burn: 0.63, community: 0.31, status: "Complete", atTick: -5290 },
+  { epoch: 12, feesIn: 0.42, liquidity: 0.15, burn: 0.08, community: 0.04, status: "Processing", atTick: -120 },
+  { epoch: 11, feesIn: 0.71, liquidity: 0.25, burn: 0.14, community: 0.07, status: "Complete", atTick: -690 },
+  { epoch: 10, feesIn: 0.55, liquidity: 0.19, burn: 0.11, community: 0.06, status: "Complete", atTick: -1260 },
+  { epoch: 9, feesIn: 0.64, liquidity: 0.22, burn: 0.13, community: 0.07, status: "Complete", atTick: -1830 },
+  { epoch: 8, feesIn: 0.48, liquidity: 0.17, burn: 0.1, community: 0.05, status: "Complete", atTick: -2410 },
+  { epoch: 7, feesIn: 0.83, liquidity: 0.29, burn: 0.17, community: 0.09, status: "Complete", atTick: -2980 },
+  { epoch: 6, feesIn: 0.37, liquidity: 0.13, burn: 0.07, community: 0.04, status: "Complete", atTick: -3560 },
+  { epoch: 5, feesIn: 0.59, liquidity: 0.21, burn: 0.12, community: 0.06, status: "Complete", atTick: -4140 },
+  { epoch: 4, feesIn: 0.45, liquidity: 0.16, burn: 0.09, community: 0.05, status: "Complete", atTick: -4720 },
+  { epoch: 3, feesIn: 0.52, liquidity: 0.18, burn: 0.1, community: 0.05, status: "Complete", atTick: -5290 },
 ];
 
-// deterministic pseudo-values for paginated "older" epochs
+// deterministic pseudo-values for paginated "older" epochs (down to epoch 1)
 export function syntheticCycle(epoch: number): Cycle {
   const h = Math.abs(Math.sin(epoch * 12.9898) * 43758.5453) % 1;
-  const fees = 2.2 + h * 2.6;
+  const fees = 0.2 + h * 0.6;
   return {
     epoch,
     feesIn: fees,
@@ -123,23 +127,19 @@ export function syntheticCycle(epoch: number): Cycle {
     burn: fees * 0.2,
     community: fees * 0.105,
     status: "Complete",
-    atTick: -5290 - (184 - epoch) * 570,
+    atTick: -120 - (12 - epoch) * 570,
   };
 }
 
 // ---------------------------------------------------------------------------
-// fees per epoch (chart seed — last 24 closed epochs)
+// fees per epoch (chart seed — every closed epoch since genesis)
 // ---------------------------------------------------------------------------
 
 export const FEES_SERIES_SEED: FeesPoint[] = [
-  { epoch: 160, fees: 2.31 }, { epoch: 161, fees: 2.64 }, { epoch: 162, fees: 2.48 },
-  { epoch: 163, fees: 3.02 }, { epoch: 164, fees: 2.86 }, { epoch: 165, fees: 3.35 },
-  { epoch: 166, fees: 2.92 }, { epoch: 167, fees: 3.58 }, { epoch: 168, fees: 3.21 },
-  { epoch: 169, fees: 3.74 }, { epoch: 170, fees: 3.4 }, { epoch: 171, fees: 2.88 },
-  { epoch: 172, fees: 3.12 }, { epoch: 173, fees: 3.66 }, { epoch: 174, fees: 3.29 },
-  { epoch: 175, fees: 2.96 }, { epoch: 176, fees: 3.48 }, { epoch: 177, fees: 3.91 },
-  { epoch: 178, fees: 2.44 }, { epoch: 179, fees: 3.05 }, { epoch: 180, fees: 4.62 },
-  { epoch: 181, fees: 3.24 }, { epoch: 182, fees: 2.71 }, { epoch: 183, fees: 4.1 },
+  { epoch: 1, fees: 0.18 }, { epoch: 2, fees: 0.31 }, { epoch: 3, fees: 0.52 },
+  { epoch: 4, fees: 0.45 }, { epoch: 5, fees: 0.59 }, { epoch: 6, fees: 0.37 },
+  { epoch: 7, fees: 0.83 }, { epoch: 8, fees: 0.48 }, { epoch: 9, fees: 0.64 },
+  { epoch: 10, fees: 0.55 }, { epoch: 11, fees: 0.71 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -155,34 +155,34 @@ export const HEALTH_METRICS = [
   { key: "stability", label: "Engine Stability", value: 88, badge: "Strong" },
 ] as const;
 
-export const MOMENTUM_SPARK = [74, 76, 75, 79, 78, 81, 80, 83, 82, 84, 83, 86, 85, 87];
+export const MOMENTUM_SPARK = [58, 62, 66, 64, 70, 73, 71, 76, 79, 82, 84, 87];
 
 // ---------------------------------------------------------------------------
 // activity feed
 // ---------------------------------------------------------------------------
 
 export const ACTIVITY_SEED: ActivityEntry[] = [
-  { id: 8, tag: "cycle", text: "epoch #184 opened", tone: "green", atTick: -122 },
-  { id: 7, tag: "reserve", text: "0.084 SOL added to reserve", tone: "neutral", atTick: -180 },
+  { id: 8, tag: "cycle", text: "epoch #12 opened", tone: "green", atTick: -122 },
+  { id: 7, tag: "reserve", text: "0.038 SOL added to reserve", tone: "neutral", atTick: -180 },
   { id: 6, tag: "engine", text: "flywheel speed increased to 92%", tone: "green", atTick: -260 },
-  { id: 5, tag: "burn", text: "burn tranche staged for epoch #184", tone: "amber", atTick: -410 },
-  { id: 4, tag: "reserve", text: "community tranche prepared — 0.41 SOL", tone: "neutral", atTick: -520 },
+  { id: 5, tag: "burn", text: "burn tranche staged for epoch #12", tone: "amber", atTick: -410 },
+  { id: 4, tag: "reserve", text: "community tranche prepared — 0.06 SOL", tone: "neutral", atTick: -520 },
   { id: 3, tag: "launch", text: "launch slot #02 opened for applications", tone: "amber", atTick: -700 },
-  { id: 2, tag: "cycle", text: "epoch #183 settled — 4.10 SOL routed", tone: "green", atTick: -740 },
-  { id: 1, tag: "docs", text: "public engine docs published", tone: "neutral", atTick: -880 },
+  { id: 2, tag: "cycle", text: "epoch #11 settled — 0.71 SOL routed", tone: "green", atTick: -740 },
+  { id: 1, tag: "engine", text: "genesis engine ignited — public dashboard live", tone: "green", atTick: -880 },
 ];
 
 // templates cycled by the simulation ticker; {r} is replaced with a jittered value
 export const ACTIVITY_POOL: { tag: string; tone: ActivityEntry["tone"]; text: (r: number) => string }[] = [
   { tag: "reserve", tone: "neutral", text: (r) => `${(0.04 + r * 0.09).toFixed(3)} SOL added to reserve` },
   { tag: "engine", tone: "green", text: (r) => `flywheel speed holding ${(91 + r * 2).toFixed(1)}%` },
-  { tag: "cycle", tone: "green", text: (r) => `cycle checkpoint — ${(0.2 + r * 0.5).toFixed(2)} SOL routed to liquidity` },
+  { tag: "cycle", tone: "green", text: (r) => `cycle checkpoint — ${(0.05 + r * 0.15).toFixed(2)} SOL routed to liquidity` },
   { tag: "burn", tone: "amber", text: (r) => `${(0.01 + r * 0.05).toFixed(3)} SOL staged for burn tranche` },
   { tag: "reserve", tone: "neutral", text: (r) => `acquisition reserve topped up +${(0.02 + r * 0.06).toFixed(3)} SOL` },
   { tag: "engine", tone: "neutral", text: () => "allocation engine rebalance check passed" },
   { tag: "launch", tone: "amber", text: () => "launch slot inquiry received — queue open" },
   { tag: "cycle", tone: "green", text: (r) => `momentum sample recorded — score ${(85 + r * 4).toFixed(0)}` },
-  { tag: "reserve", tone: "neutral", text: (r) => `community tranche accruing — ${(0.3 + r * 0.2).toFixed(2)} SOL pending` },
+  { tag: "reserve", tone: "neutral", text: (r) => `community tranche accruing — ${(0.03 + r * 0.05).toFixed(2)} SOL pending` },
   { tag: "engine", tone: "neutral", text: () => "public dashboard heartbeat ok" },
   { tag: "burn", tone: "amber", text: () => "burn tranche staged — settles next cycle" },
   { tag: "launch", tone: "amber", text: () => "genesis template forked to draft engine" },

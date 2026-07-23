@@ -1,8 +1,7 @@
 "use client";
 
 import { TrendingUp, Minus, ArrowUpRight } from "lucide-react";
-import { usePof } from "@/lib/store";
-import { HEALTH_METRICS, MOMENTUM_SPARK } from "@/data/mock-data";
+import { GENESIS, HEALTH_METRICS, MOMENTUM_SPARK } from "@/data/mock-data";
 import { fmt } from "@/lib/format";
 import { Sparkline } from "@/components/sparkline";
 import { Panel, PanelHeader, cx } from "@/components/ui";
@@ -29,7 +28,6 @@ function HealthBadge({ badge }: { badge: string }) {
 }
 
 export function MomentumPanel() {
-  const { speed } = usePof();
   return (
     <Panel className="flex h-full flex-col">
       <PanelHeader
@@ -40,10 +38,10 @@ export function MomentumPanel() {
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <p className="font-mono text-3xs uppercase tracking-[0.14em] text-muted">
-            momentum · 14 epochs
+            momentum · since genesis
           </p>
           <p className="mt-0.5 font-mono text-2xl font-bold tabular-nums text-accent">
-            {fmt(speed, 0)}
+            {fmt(GENESIS.momentumScore, 0)}
             <span className="ml-1 text-xs font-medium text-muted">/ 100</span>
           </p>
         </div>

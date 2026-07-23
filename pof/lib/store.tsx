@@ -95,7 +95,7 @@ function simReducer(state: SimState, action: SimAction): SimState {
   let next: SimState = {
     ...state,
     tick,
-    feesRouted: state.feesRouted + 0.008 + r1 * 0.006,
+    feesRouted: state.feesRouted + 0.0009 + r1 * 0.0007,
     nextCycle: state.nextCycle - 1,
   };
 
@@ -112,7 +112,7 @@ function simReducer(state: SimState, action: SimAction): SimState {
   // epoch rollover
   if (next.nextCycle <= 0) {
     const epoch = state.epoch + 1;
-    const fees = 2.4 + r3 * 2.2;
+    const fees = 0.3 + r3 * 0.5;
     const settled = state.cycles[0];
     const newCycle: Cycle = {
       epoch,
@@ -126,13 +126,16 @@ function simReducer(state: SimState, action: SimAction): SimState {
     next = {
       ...next,
       epoch,
-      nextCycle: 280 + Math.floor(r1 * 60),
+      nextCycle: 480 + Math.floor(r1 * 120),
       totalCycles: state.totalCycles + 1,
       cycles: [
         newCycle,
         ...state.cycles.map((c, i) => (i === 0 ? { ...c, status: "Complete" as const } : c)),
       ].slice(0, 12),
-      feesSeries: [...state.feesSeries.slice(1), { epoch: settled.epoch, fees: settled.feesIn }],
+      feesSeries: [
+        ...state.feesSeries,
+        { epoch: settled.epoch, fees: settled.feesIn },
+      ].slice(-24),
     };
     next = {
       ...next,

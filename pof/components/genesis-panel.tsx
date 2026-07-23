@@ -66,7 +66,7 @@ export function GenesisPanel() {
 
       <Panel className="flex-1">
         <PanelHeader
-          title="fees routed per epoch · last 24"
+          title="fees routed per epoch · since genesis"
           right={<span className="font-mono text-3xs text-faint">SOL / epoch</span>}
         />
         <div className="px-3 pb-2 pt-3">

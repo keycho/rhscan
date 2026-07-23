@@ -9,7 +9,6 @@ import type { Cycle, CycleStatus } from "@/types";
 import { Panel, PanelHeader, cx } from "@/components/ui";
 
 const PAGE_SIZE = 8;
-const TOTAL_PAGES = 48; // implied history depth (visual only)
 
 type Filter = "All" | CycleStatus;
 
@@ -18,11 +17,13 @@ export function CycleTable() {
   const [filter, setFilter] = useState<Filter>("All");
   const [page, setPage] = useState(1);
 
+  const newest = cycles[0]?.epoch ?? 1;
+  const totalPages = Math.max(1, Math.ceil(newest / PAGE_SIZE));
+
   let rows: Cycle[];
   if (page === 1) {
     rows = cycles.filter((c) => filter === "All" || c.status === filter).slice(0, PAGE_SIZE);
   } else {
-    const newest = cycles[0]?.epoch ?? 184;
     const start = newest - (page - 1) * PAGE_SIZE;
     rows = Array.from({ length: PAGE_SIZE }, (_, i) => syntheticCycle(start - i)).filter(
       (c) => c.epoch > 0 && (filter === "All" || c.status === filter)
@@ -113,7 +114,7 @@ export function CycleTable() {
 
       <div className="flex items-center justify-between border-t border-line px-3 py-2">
         <p className="font-mono text-3xs text-faint">
-          page {page} of {TOTAL_PAGES} · {fmt(TOTAL_PAGES * PAGE_SIZE)} cycles archived
+          page {page} of {totalPages} · {fmt(newest)} cycles since genesis
         </p>
         <div className="flex gap-1">
           <button
@@ -125,8 +126,8 @@ export function CycleTable() {
             <ChevronLeft size={12} />
           </button>
           <button
-            onClick={() => setPage((p) => Math.min(TOTAL_PAGES, p + 1))}
-            disabled={page === TOTAL_PAGES}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
             className="flex h-6 w-6 items-center justify-center rounded border border-line text-muted transition-colors hover:border-accent/40 hover:text-secondary disabled:opacity-30"
             aria-label="Next page"
           >

@@ -59,7 +59,7 @@ export function OpenSlots() {
         </div>
         <div className="border-t border-line px-4 py-2.5">
           <p className="font-mono text-3xs text-faint">
-            no fake tickers here — slots fill in launch order. genesis proved the loop; the board
+            no fake tickers here — slots fill in launch order. genesis is turning live; the board
             is open.
           </p>
         </div>

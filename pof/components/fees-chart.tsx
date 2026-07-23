@@ -32,7 +32,7 @@ export function FeesChart() {
   return (
     <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={feesSeries} margin={{ top: 6, right: 4, bottom: 0, left: -10 }}>
+        <AreaChart data={feesSeries} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="feesFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#14f195" stopOpacity={0.22} />
@@ -53,8 +53,8 @@ export function FeesChart() {
             tickLine={false}
             axisLine={false}
             width={28}
-            domain={[0, 6]}
-            ticks={[0, 2, 4, 6]}
+            domain={[0, 1.2]}
+            ticks={[0, 0.4, 0.8, 1.2]}
           />
           <Tooltip
             content={<ChartTooltip />}
