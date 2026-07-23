@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, LogOut, Search, Wallet, X } from "lucide-react";
 import { usePof } from "@/lib/store";
+import { X_URL } from "@/data/mock-data";
 import { PofMark, btn, cx } from "@/components/ui";
 import { fmt } from "@/lib/format";
 
@@ -30,12 +31,14 @@ export function TopNav() {
 
         {/* bracketed links */}
         <nav className="flex items-center gap-0.5 overflow-x-auto text-xs [scrollbar-width:none]">
-          <button
-            onClick={() => toast("x account drops at launch", "info")}
+          <a
+            href={X_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="whitespace-nowrap px-1.5 py-1 text-secondary transition hover:text-accent"
           >
             [ x ]
-          </button>
+          </a>
           {LINKS.map((l) =>
             l.label === "launch" ? (
               <button

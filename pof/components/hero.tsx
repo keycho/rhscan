@@ -1,10 +1,11 @@
 "use client";
 
 import { usePof } from "@/lib/store";
+import { X_URL } from "@/data/mock-data";
 import { btn } from "@/components/ui";
 
 export function Hero() {
-  const { openModal, toast } = usePof();
+  const { openModal } = usePof();
   return (
     <section className="px-4 pb-14 pt-16 text-center sm:pt-20">
       <h1 className="title-shadow text-5xl font-extrabold lowercase tracking-tight text-accent sm:text-6xl">
@@ -23,9 +24,9 @@ export function Hero() {
         <a href="#flywheels" className={btn.outline}>
           explore flywheels
         </a>
-        <button onClick={() => toast("follow on x — demo link", "info")} className={btn.outline}>
+        <a href={X_URL} target="_blank" rel="noopener noreferrer" className={btn.outline}>
           follow on x
-        </button>
+        </a>
       </div>
     </section>
   );

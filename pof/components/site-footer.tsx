@@ -1,6 +1,7 @@
 "use client";
 
 import { usePof } from "@/lib/store";
+import { X_URL } from "@/data/mock-data";
 import { INDEPENDENCE_NOTICE, LegalLinks } from "@/components/legal";
 import { PofMark } from "@/components/ui";
 
@@ -48,7 +49,17 @@ export function SiteFooter() {
         <div>
           <p className="text-3xs uppercase tracking-wide text-faint">community</p>
           <ul className="mt-2.5 space-y-1.5">
-            {["x / twitter", "telegram", "engine updates"].map((l) => (
+            <li>
+              <a
+                href={X_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-2xs text-muted transition hover:text-accent"
+              >
+                [ x / twitter ]
+              </a>
+            </li>
+            {["telegram", "engine updates"].map((l) => (
               <li key={l}>
                 <button
                   onClick={() => toast(`${l} — dropping at launch`, "info")}

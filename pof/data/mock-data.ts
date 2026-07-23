@@ -9,6 +9,8 @@ import type {
   WalletState,
 } from "@/types";
 
+export const X_URL = "https://x.com/ProofofFlywheel";
+
 // ---------------------------------------------------------------------------
 // genesis engine
 // ---------------------------------------------------------------------------
