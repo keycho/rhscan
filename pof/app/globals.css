@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #070a08;
+  --panel: #0d100e;
+  --panel2: #121613;
+  --line: #1e2420;
+  --text: #e8f0ea;
+  --secondary: #a3b3aa;
+  --muted: #7d8c83;
+  --accent: #14f195;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(20, 241, 149, 0.28);
+  color: #eafff5;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #242c27 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #242c27;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* faint grid backdrop behind the hero, terminal-style */
+.grid-backdrop {
+  background-image:
+    linear-gradient(rgba(20, 241, 149, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 241, 149, 0.028) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
