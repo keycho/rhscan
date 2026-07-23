@@ -58,7 +58,9 @@ const initialSim: SimState = {
 
 type SimAction =
   | { type: "TICK"; rand: [number, number, number] }
-  | { type: "PUSH_ACTIVITY"; tag: string; text: string; tone: ActivityEntry["tone"] };
+  | { type: "PUSH_ACTIVITY"; tag: string; text: string; tone: ActivityEntry["tone"] }
+  | { type: "DEPOSIT"; amount: number }
+  | { type: "EXECUTE_CYCLE"; extra: number };
 
 function pushEntry(
   state: SimState,
@@ -115,6 +117,25 @@ function simReducer(state: SimState, action: SimAction): SimState {
     };
   }
 
+  if (action.type === "DEPOSIT") {
+    let next = { ...state, flywheelBalance: state.flywheelBalance + action.amount };
+    next = {
+      ...next,
+      ...pushEntry(
+        next,
+        { tag: "reserve", text: `deposit added · ${action.amount.toFixed(2)} SOL`, tone: "neutral" },
+        state.tick
+      ),
+    };
+    return next;
+  }
+
+  if (action.type === "EXECUTE_CYCLE") {
+    const total = Math.round((state.flywheelBalance + action.extra) * 100) / 100;
+    if (!(total > 0)) return state;
+    return executeCycle(state, total);
+  }
+
   const [r1, r2, r3] = action.rand;
   const tick = state.tick + 1;
   let next: SimState = { ...state, tick, nextCycle: state.nextCycle - 1 };
@@ -163,12 +184,18 @@ interface PofStore extends SimState {
   modal: ModalKind;
   toasts: Toast[];
   searchQuery: string;
+  /** when true, a successful wallet connection continues into the wizard */
+  pendingActivate: boolean;
+  setPendingActivate: (v: boolean) => void;
   setSearchQuery: (q: string) => void;
   openModal: (m: ModalKind) => void;
   closeModal: () => void;
   toast: (message: string, tone?: Toast["tone"]) => void;
   dismissToast: (id: number) => void;
   logActivity: (tag: string, text: string, tone?: ActivityEntry["tone"]) => void;
+  /** genesis demo engine interactions — config/sim state only, never a transaction */
+  simDeposit: (amount: number) => void;
+  simExecuteCycle: (extra: number) => void;
 }
 
 const PofContext = createContext<PofStore | null>(null);
@@ -178,6 +205,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
   const [modal, setModal] = useState<ModalKind>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingActivate, setPendingActivate] = useState(false);
   const toastId = useRef(1);
 
   // 1s simulation clock
@@ -208,20 +236,54 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const simDeposit = useCallback(
+    (amount: number) => {
+      dispatch({ type: "DEPOSIT", amount });
+      toast(`${amount.toFixed(2)} SOL added to the flywheel balance`);
+    },
+    [toast]
+  );
+
+  const simExecuteCycle = useCallback(
+    (extra: number) => {
+      if (extra > 0) dispatch({ type: "DEPOSIT", amount: extra });
+      dispatch({ type: "EXECUTE_CYCLE", extra: 0 });
+      toast("cycle executed — balance routed through the engine");
+    },
+    [toast]
+  );
+
   const value = useMemo<PofStore>(
     () => ({
       ...sim,
       modal,
       toasts,
       searchQuery,
+      pendingActivate,
+      setPendingActivate,
       setSearchQuery,
       openModal,
       closeModal,
       toast,
       dismissToast,
       logActivity,
+      simDeposit,
+      simExecuteCycle,
     }),
-    [sim, modal, toasts, searchQuery, openModal, closeModal, toast, dismissToast, logActivity]
+    [
+      sim,
+      modal,
+      toasts,
+      searchQuery,
+      pendingActivate,
+      openModal,
+      closeModal,
+      toast,
+      dismissToast,
+      logActivity,
+      simDeposit,
+      simExecuteCycle,
+    ]
   );
 
   return <PofContext.Provider value={value}>{children}</PofContext.Provider>;

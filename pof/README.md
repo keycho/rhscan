@@ -4,9 +4,10 @@
 Pump.fun token creators. deposit. route. verify.
 
 Terminal-style site for Proof of Flywheel (POF), currently a **public
-technical preview**: the genesis flywheel shown on the dashboard is clearly
-labelled protocol simulation, wallet connection is real, and contract
-execution (deposits, cycles) is disabled until the protocol goes live.
+technical preview** with a complete interactive creation demo: connect a real
+Solana wallet, pick a token, configure routing, plan a deposit and create a
+flywheel preview that persists per wallet. No transaction is ever built,
+signed or submitted, and no SOL moves.
 
 ## Run it
 
@@ -31,12 +32,12 @@ Environment:
   packages (standard wallets only — installed wallets connect, missing ones
   get install links), the connected wallet's on-chain SOL balance, and the
   legal pages (`/terms`, `/privacy`, `/risks`).
-- **Simulation (labelled):** the genesis flywheel's cycles, activity feed and
-  totals are demonstration data driven by a local clock. Nothing is presented
-  as a confirmed onchain transaction, and no transaction is ever created,
-  signed or executed by this site.
-- **Unavailable (labelled):** creator-token verification and deposits are
-  disabled until the protocol contracts go live.
+- **Demo:** the five-step creation wizard (select token / configure routing /
+  fund / review / create) produces a configuration preview saved to
+  localStorage under the connected public key, shown at `/preview`. The
+  genesis engine on the dashboard is demonstration data driven by a local
+  clock. The "recent cycles" section is a truthful empty state — no rows
+  render until genuine onchain cycles exist.
 
 POF never requests seed phrases or private keys.
 

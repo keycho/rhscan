@@ -11,10 +11,10 @@ import { PofMark, btn } from "@/components/ui";
 import { fmt } from "@/lib/format";
 
 const LINKS = [
-  { label: "dashboard", href: "#top" },
-  { label: "flywheels", href: "#flywheels" },
-  { label: "activity", href: "#activity" },
-  { label: "docs", href: "#docs" },
+  { label: "dashboard", href: "/#top" },
+  { label: "flywheels", href: "/#flywheels" },
+  { label: "activity", href: "/#activity" },
+  { label: "docs", href: "/#docs" },
 ];
 
 export function TopNav() {
@@ -30,7 +30,7 @@ export function TopNav() {
     <header id="top" className="border-b border-line bg-bg">
       {menuOpen ? <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} /> : null}
       <div className="mx-auto flex h-14 max-w-page items-center gap-2 px-4">
-        <a href="#top" className="mr-1 flex shrink-0 items-center text-accent">
+        <a href="/#top" className="mr-1 flex shrink-0 items-center text-accent">
           <PofMark size={22} />
         </a>
 

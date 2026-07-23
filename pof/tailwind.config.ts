@@ -72,6 +72,10 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        blink: {
+          "0%, 49%": { opacity: "1" },
+          "50%, 100%": { opacity: "0" },
+        },
       },
       animation: {
         "marquee-slow": "marquee 42s linear infinite",
@@ -80,6 +84,7 @@ const config: Config = {
         "row-flash": "row-flash 1.6s ease-out",
         "modal-in": "modal-in 0.18s ease-out",
         "toast-in": "toast-in 0.25s ease-out",
+        blink: "blink 1.1s step-end infinite",
       },
     },
   },

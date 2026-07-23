@@ -1,8 +1,9 @@
 "use client";
 
-import { PofProvider, usePof } from "@/lib/store";
-import { SolanaProvider } from "@/components/solana-provider";
-import { TopNav } from "@/components/top-nav";
+import { useEffect, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { AppShell } from "@/components/app-shell";
+import { usePof } from "@/lib/store";
 import { Tickers } from "@/components/tickers";
 import { Hero } from "@/components/hero";
 import { FeaturedFlywheel } from "@/components/featured-flywheel";
@@ -12,23 +13,33 @@ import { HowItWorks } from "@/components/how-it-works";
 import { AllocationBar } from "@/components/allocation-bar";
 import { FlywheelsGrid } from "@/components/flywheels-grid";
 import { RecentCycles } from "@/components/recent-cycles";
-import { SiteFooter } from "@/components/site-footer";
-import { Toaster } from "@/components/toaster";
-import { WalletModal } from "@/components/modals/wallet-modal";
-import { ActivationModal } from "@/components/modals/activation-modal";
 
-function Modals() {
-  const { modal } = usePof();
-  if (modal === "wallet") return <WalletModal />;
-  if (modal === "activate") return <ActivationModal />;
+/** opens the wizard when arriving via /?activate=1 (e.g. from the preview page) */
+function AutoActivate() {
+  const { openModal, setPendingActivate } = usePof();
+  const { connected } = useWallet();
+  const fired = useRef(false);
+
+  useEffect(() => {
+    if (fired.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("activate") !== "1") return;
+    fired.current = true;
+    if (connected) {
+      openModal("activate");
+    } else {
+      setPendingActivate(true);
+      openModal("wallet");
+    }
+  }, [connected, openModal, setPendingActivate]);
+
   return null;
 }
 
 export default function Page() {
   return (
-    <SolanaProvider>
-      <PofProvider>
-      <TopNav />
+    <AppShell>
+      <AutoActivate />
       <Tickers />
       <main>
         <Hero />
@@ -40,10 +51,6 @@ export default function Page() {
         <FlywheelsGrid />
         <RecentCycles />
       </main>
-        <SiteFooter />
-        <Modals />
-        <Toaster />
-      </PofProvider>
-    </SolanaProvider>
+    </AppShell>
   );
 }

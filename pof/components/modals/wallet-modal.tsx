@@ -19,7 +19,7 @@ const KNOWN_WALLETS = [
 ];
 
 export function WalletModal() {
-  const { closeModal, toast } = usePof();
+  const { closeModal, openModal, toast, pendingActivate, setPendingActivate } = usePof();
   const { wallets, select, connect, connecting, connected, publicKey, wallet } = useWallet();
   const [chosen, setChosen] = useState<WalletName | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,13 +47,18 @@ export function WalletModal() {
     });
   }, [chosen, wallet, connected, connecting, connect]);
 
-  // close on successful connection
+  // close on successful connection; continue into the wizard when requested
   useEffect(() => {
     if (connected && publicKey) {
       toast(`wallet connected — ${shortAddress(publicKey.toBase58())}`);
-      closeModal();
+      if (pendingActivate) {
+        setPendingActivate(false);
+        openModal("activate");
+      } else {
+        closeModal();
+      }
     }
-  }, [connected, publicKey, toast, closeModal]);
+  }, [connected, publicKey, toast, closeModal, openModal, pendingActivate, setPendingActivate]);
 
   return (
     <Modal

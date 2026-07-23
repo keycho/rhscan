@@ -32,9 +32,6 @@ export function FeaturedFlywheel() {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2 text-2xs">
-            <span className="rounded-full border border-amber/40 px-2 py-0.5 text-3xs lowercase text-amber">
-              protocol simulation
-            </span>
             <span className="flex items-center gap-1.5 text-accent">
               <LiveDot /> active
             </span>
@@ -71,7 +68,7 @@ export function FeaturedFlywheel() {
           ))}
         </div>
         <p className="border-t border-line px-4 py-2 text-center text-3xs text-faint">
-          demonstration data — no figure on this card is a confirmed onchain transaction
+          genesis engine preview · reserve balances publish on-chain at launch
         </p>
       </Card>
     </section>

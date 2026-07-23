@@ -6,8 +6,18 @@ import { X_URL } from "@/data/mock-data";
 import { btn } from "@/components/ui";
 
 export function Hero() {
-  const { openModal } = usePof();
+  const { openModal, setPendingActivate } = usePof();
   const { connected } = useWallet();
+
+  const activate = () => {
+    if (connected) {
+      openModal("activate");
+    } else {
+      setPendingActivate(true);
+      openModal("wallet");
+    }
+  };
+
   return (
     <section className="px-4 pb-14 pt-16 text-center sm:pt-20">
       <h1 className="title-shadow text-5xl font-extrabold lowercase tracking-tight text-accent sm:text-6xl">
@@ -20,11 +30,8 @@ export function Hero() {
         [ connect. configure. deposit SOL. turn the wheel. ]
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <button
-          onClick={() => openModal(connected ? "activate" : "wallet")}
-          className={btn.solid}
-        >
-          {connected ? "activate a flywheel" : "connect creator wallet"}
+        <button onClick={activate} className={btn.solid}>
+          activate a flywheel
         </button>
         <a href="#flywheels" className={btn.outline}>
           view live flywheels

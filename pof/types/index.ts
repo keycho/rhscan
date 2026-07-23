@@ -45,3 +45,24 @@ export interface FeesPoint {
   epoch: number;
   fees: number;
 }
+
+export interface DraftToken {
+  name: string;
+  symbol: string;
+  mint: string;
+  /** true when this is the offered demonstration token, not a creator token */
+  demo: boolean;
+}
+
+/** a flywheel preview created in the demo wizard — config state only, never a transaction */
+export interface FlywheelDraft {
+  owner: string;
+  token: DraftToken;
+  mode: EngineMode;
+  weights: { key: string; label: string; pct: number; color: string }[];
+  plannedDeposit: number;
+  slippagePct: number;
+  treasury: string;
+  createdAt: number;
+  status: "draft";
+}
