@@ -1,27 +1,30 @@
 import type { Config } from "tailwindcss";
 
-// dark terminal palette for the pof showcase. single fixed theme — the product
-// is a dark web3 terminal by design. donut/series colors live in data/mock-data
-// and were validated for CVD separation + contrast against --panel.
+// proof-of-bagwork-style terminal palette: near-black green-tinted background,
+// thin muted green borders, bright terminal green accent, yellow/orange
+// emphasis, pale-green highlight rows. all type is monospace.
+// contrast + allocation series colors validated against --panel.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "#070a08",
-        panel: "#0d100e",
-        panel2: "#121613",
-        line: "#1e2420",
-        "line-strong": "#2a332d",
-        text: "#e8f0ea",
-        secondary: "#a3b3aa",
-        muted: "#7d8c83",
-        faint: "#5a6660",
-        accent: "#14f195",
-        "accent-deep": "#0c8f5a",
-        "accent-ink": "#052e1c",
-        amber: "#f5b62e",
+        bg: "#0b100c",
+        panel: "#121a13",
+        panel2: "#162016",
+        line: "#24382a",
+        "line-strong": "#2f4a37",
+        text: "#d7ecdc",
+        secondary: "#9fc4aa",
+        muted: "#7da88b",
+        faint: "#567a63",
+        accent: "#4ef08a",
+        "accent-ink": "#06301a",
+        amber: "#f2c94c",
+        orange: "#fb923c",
         negative: "#ff6b6b",
+        pale: "#b8e6c6",
+        "pale-ink": "#123822",
       },
       fontFamily: {
         mono: [
@@ -33,11 +36,12 @@ const config: Config = {
           "monospace",
         ],
         sans: [
-          "var(--font-sans)",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "sans-serif",
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
         ],
       },
       fontSize: {
@@ -45,19 +49,19 @@ const config: Config = {
         "3xs": ["0.625rem", { lineHeight: "0.875rem" }],
       },
       maxWidth: {
-        page: "1240px",
+        page: "1080px",
       },
       keyframes: {
-        "spin-slow": {
-          from: { transform: "rotate(0deg)" },
-          to: { transform: "rotate(360deg)" },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
         },
         "feed-in": {
           from: { opacity: "0", transform: "translateY(-6px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
         "row-flash": {
-          from: { backgroundColor: "rgba(20, 241, 149, 0.10)" },
+          from: { backgroundColor: "rgba(78, 240, 138, 0.12)" },
           to: { backgroundColor: "transparent" },
         },
         "modal-in": {
@@ -68,18 +72,14 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        blink: {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.35" },
-        },
       },
       animation: {
-        "spin-slow": "spin-slow 48s linear infinite",
+        "marquee-slow": "marquee 42s linear infinite",
+        "marquee-fast": "marquee 30s linear infinite",
         "feed-in": "feed-in 0.35s ease-out",
         "row-flash": "row-flash 1.6s ease-out",
         "modal-in": "modal-in 0.18s ease-out",
         "toast-in": "toast-in 0.25s ease-out",
-        blink: "blink 1.6s ease-in-out infinite",
       },
     },
   },

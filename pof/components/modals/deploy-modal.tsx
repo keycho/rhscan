@@ -5,7 +5,7 @@ import { CheckCircle2, Loader2, Rocket } from "lucide-react";
 import { Modal } from "./modal";
 import { usePof } from "@/lib/store";
 import { ALLOCATION_MODES } from "@/data/mock-data";
-import { KV, Pill, btn } from "@/components/ui";
+import { KV, btn } from "@/components/ui";
 
 const STEPS = [
   "validating engine config…",
@@ -26,7 +26,7 @@ export function DeployModal() {
   const alloc = ALLOCATION_MODES[deployConfig.mode];
   const weights = alloc.map((a) => a.pct).join(" / ");
 
-  const simulate = () => {
+  const deploy = () => {
     setPhase("deploying");
     STEPS.forEach((_, i) => {
       timers.current.push(setTimeout(() => setStep(i + 1), 550 * (i + 1)));
@@ -41,24 +41,21 @@ export function DeployModal() {
 
   return (
     <Modal
-      title={phase === "done" ? "Deployment complete" : "Preview engine deployment"}
-      subtitle={phase === "done" ? undefined : "review the manifest before simulating deployment"}
+      title={phase === "done" ? "engine deployed" : "review deployment"}
+      subtitle={phase === "done" ? undefined : "confirm the manifest before deploying"}
       onClose={closeModal}
       wide
     >
       {phase === "done" ? (
         <div className="py-4 text-center">
           <CheckCircle2 size={36} className="mx-auto text-accent" />
-          <h4 className="mt-3 font-mono text-sm font-semibold uppercase tracking-[0.12em] text-text">
-            Engine deployed in demo mode
-          </h4>
+          <h4 className="mt-3 text-sm font-bold lowercase text-text">your flywheel is turning</h4>
           <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-muted">
-            your draft engine was added to My Engines. in production this would publish a live
-            public flywheel dashboard at{" "}
-            <span className="font-mono text-accent">pof.fun/e/{deployConfig.slug || "new-engine"}</span>
+            engine added to my engines. your public dashboard is provisioning at{" "}
+            <span className="text-accent">pof.fun/e/{deployConfig.slug || "new-engine"}</span>
           </p>
-          <button onClick={closeModal} className={`${btn.primary} mt-5`}>
-            Done
+          <button onClick={closeModal} className={`${btn.solid} mt-5`}>
+            done
           </button>
         </div>
       ) : (
@@ -68,7 +65,7 @@ export function DeployModal() {
               label="token address"
               value={
                 <span className="max-w-[220px] truncate text-secondary">
-                  {deployConfig.tokenAddress || "So1…demo (placeholder)"}
+                  {deployConfig.tokenAddress || "—"}
                 </span>
               }
             />
@@ -79,13 +76,13 @@ export function DeployModal() {
               value={<span className="text-accent">pof.fun/e/{deployConfig.slug || "new-engine"}</span>}
             />
             <KV label="cycle trigger" value={deployConfig.trigger} />
-            <KV label="estimated setup cost" value="0.42 SOL (simulated)" />
+            <KV label="estimated setup cost" value="0.42 SOL" />
             <KV label="network" value="Solana · mainnet-beta" />
             <KV label="wallet" value={wallet?.address ?? "—"} />
           </div>
 
           {phase === "deploying" ? (
-            <div className="mt-4 space-y-1.5 rounded border border-line bg-bg px-3 py-3 font-mono text-2xs">
+            <div className="mt-4 space-y-1.5 rounded border border-line bg-bg px-3 py-3 text-2xs">
               {STEPS.map((s, i) => (
                 <div key={s} className="flex items-center gap-2">
                   {step > i ? (
@@ -101,20 +98,15 @@ export function DeployModal() {
             </div>
           ) : null}
 
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <Pill tone="amber">nothing is executed on-chain</Pill>
-            <button
-              onClick={simulate}
-              disabled={phase === "deploying"}
-              className={btn.primary}
-            >
+          <div className="mt-4 flex items-center justify-end gap-3">
+            <button onClick={deploy} disabled={phase === "deploying"} className={btn.solid}>
               {phase === "deploying" ? (
                 <>
                   <Loader2 size={14} className="animate-spin" /> deploying…
                 </>
               ) : (
                 <>
-                  <Rocket size={14} /> Simulate Deployment
+                  <Rocket size={14} /> deploy engine
                 </>
               )}
             </button>

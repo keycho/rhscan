@@ -33,7 +33,7 @@ import {
 const STORAGE_KEY = "pof-demo-state-v1";
 const RECENT_WALLET_KEY = "pof-recent-wallet";
 
-export type ModalKind = "signin" | "wallet" | "deploy" | null;
+export type ModalKind = "signin" | "wallet" | "deploy" | "launch" | null;
 type GateLevel = "user" | "wallet";
 
 // ---------------------------------------------------------------------------
@@ -158,6 +158,8 @@ interface PofStore extends SimState {
   modal: ModalKind;
   deployConfig: DeployConfig | null;
   toasts: Toast[];
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
   openModal: (m: ModalKind) => void;
   closeModal: () => void;
   signIn: (provider: string) => void;
@@ -183,6 +185,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
   const [modal, setModal] = useState<ModalKind>(null);
   const [deployConfig, setDeployConfig] = useState<DeployConfig | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const toastId = useRef(1);
   const pending = useRef<{ level: GateLevel; run: () => void } | null>(null);
   const hydrated = useRef(false);
@@ -250,7 +253,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
     (provider: string) => {
       setUser(DEMO_PROFILE);
       setEngines((prev) => (prev.length ? prev : SEED_ENGINES));
-      toast(`signed in as ${DEMO_PROFILE.username} — demo session`);
+      toast(`signed in as ${DEMO_PROFILE.username}`);
       if (provider === "solana") {
         setModal("wallet");
         return;
@@ -280,7 +283,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // ignore
       }
-      toast(`wallet connected — ${DEMO_WALLET.address} (simulated)`);
+      toast(`wallet connected — ${DEMO_WALLET.address}`);
       setModal(null);
       const p = pending.current;
       if (p) {
@@ -300,7 +303,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-    toast("disconnected — local demo state reset", "info");
+    toast("wallet disconnected", "info");
   }, [toast]);
 
   const gate = useCallback(
@@ -333,14 +336,14 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
         {
           id: `${slug}-${Date.now()}`,
           name: cfg.tokenName || "Untitled Engine",
-          statusLabel: "Draft — demo deployment",
+          statusLabel: "Provisioning",
           status: "deployed",
           mode: cfg.mode,
           slug,
         },
       ]);
-      logActivity("launch", `engine draft "${slug}" deployed in demo mode`, "amber");
-      toast("engine deployed in demo mode — added to My Engines");
+      logActivity("launch", `new engine "${slug}" deployed — dashboard provisioning`, "amber");
+      toast("engine deployed — added to my engines");
     },
     [logActivity, toast]
   );
@@ -355,6 +358,8 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
       modal,
       deployConfig,
       toasts,
+      searchQuery,
+      setSearchQuery,
       openModal,
       closeModal,
       signIn,
@@ -376,6 +381,7 @@ export function PofProvider({ children }: { children: React.ReactNode }) {
       modal,
       deployConfig,
       toasts,
+      searchQuery,
       openModal,
       closeModal,
       signIn,

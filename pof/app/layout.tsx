@@ -1,20 +1,19 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Proof of Flywheel — every trade turns the wheel",
+  title: "proof of flywheel — every trade turns the wheel",
   description:
-    "A public flywheel layer for launch tokens. Track reserves, cycles, allocations and momentum from one terminal. Showcase demo — no backend.",
+    "launch the loop. route the fees. keep it turning. a public flywheel layer for launch tokens.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
-      <body className="font-sans text-[13px]">{children}</body>
+    <html lang="en" className={jetbrains.variable}>
+      <body className="font-mono text-[13px]">{children}</body>
     </html>
   );
 }

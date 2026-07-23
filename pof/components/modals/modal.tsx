@@ -41,15 +41,13 @@ export function Modal({
     >
       <div
         className={cx(
-          "w-full animate-modal-in rounded-md border border-line bg-panel shadow-[0_0_60px_rgba(20,241,149,0.06)]",
+          "w-full animate-modal-in rounded border border-line-strong bg-panel",
           wide ? "max-w-lg" : "max-w-md"
         )}
       >
         <div className="flex items-start justify-between border-b border-line px-5 py-4">
           <div>
-            <h3 className="font-mono text-sm font-semibold uppercase tracking-[0.12em] text-text">
-              {title}
-            </h3>
+            <h3 className="text-sm font-bold lowercase text-accent">{title}</h3>
             {subtitle ? <p className="mt-1 text-xs text-muted">{subtitle}</p> : null}
           </div>
           <button

@@ -4,19 +4,17 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
-// button class recipes — keep every CTA on the same three shapes
+// bagwork-style button recipes: rectangular, mono, pressed states
 export const btn = {
-  primary:
-    "inline-flex items-center gap-1.5 whitespace-nowrap rounded bg-accent px-3.5 h-9 text-[13px] font-semibold text-accent-ink transition-colors hover:bg-[#45f6ad] disabled:opacity-50",
+  solid:
+    "inline-flex items-center gap-1.5 whitespace-nowrap rounded border border-accent bg-accent px-3.5 h-9 text-xs font-bold text-accent-ink transition hover:bg-[#71f5a3] active:translate-y-px",
   outline:
-    "inline-flex items-center gap-1.5 whitespace-nowrap rounded border border-line bg-transparent px-3.5 h-9 text-[13px] font-medium text-secondary transition-colors hover:border-accent/50 hover:text-accent",
-  ghost:
-    "inline-flex items-center gap-1.5 whitespace-nowrap rounded px-2.5 h-8 text-[13px] font-medium text-secondary transition-colors hover:text-text hover:bg-panel2",
+    "inline-flex items-center gap-1.5 whitespace-nowrap rounded border border-line-strong bg-transparent px-3.5 h-9 text-xs font-medium text-secondary transition hover:border-accent hover:text-accent active:translate-y-px",
   small:
-    "inline-flex items-center gap-1 whitespace-nowrap rounded border border-line px-2 h-7 text-2xs font-mono text-secondary transition-colors hover:border-accent/50 hover:text-accent",
+    "inline-flex items-center gap-1 whitespace-nowrap rounded border border-line px-2 h-7 text-2xs text-secondary transition hover:border-accent hover:text-accent active:translate-y-px",
 };
 
-export function Panel({
+export function Card({
   className,
   children,
   id,
@@ -26,50 +24,32 @@ export function Panel({
   id?: string;
 }) {
   return (
-    <div id={id} className={cx("rounded-md border border-line bg-panel", className)}>
+    <div id={id} className={cx("rounded border border-line bg-panel", className)}>
       {children}
     </div>
   );
 }
 
-export function PanelHeader({
-  title,
-  right,
-  className,
-}: {
-  title: React.ReactNode;
-  right?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cx(
-        "flex items-center justify-between gap-3 border-b border-line px-4 py-2.5",
-        className
-      )}
-    >
-      <div className="font-mono text-2xs uppercase tracking-[0.14em] text-muted">{title}</div>
-      {right}
-    </div>
-  );
-}
-
 export function SectionHead({
-  index,
   title,
   right,
+  tone = "amber",
 }: {
-  index: string;
   title: string;
   right?: React.ReactNode;
+  tone?: "amber" | "green";
 }) {
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
-      <div className="flex items-baseline gap-2 font-mono">
-        <span className="text-2xs text-accent">//{index}</span>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-text">{title}</h2>
-      </div>
-      {right}
+      <h2
+        className={cx(
+          "text-base font-bold lowercase",
+          tone === "amber" ? "text-amber" : "text-accent"
+        )}
+      >
+        {title}
+      </h2>
+      {right ? <div className="text-3xs text-faint">{right}</div> : null}
     </div>
   );
 }
@@ -93,14 +73,14 @@ export function Pill({
   className?: string;
 }) {
   const tones = {
-    green: "border-accent/30 bg-accent/10 text-accent",
-    amber: "border-amber/30 bg-amber/10 text-amber",
-    neutral: "border-line bg-panel2 text-secondary",
+    green: "border-accent/40 text-accent",
+    amber: "border-amber/40 text-amber",
+    neutral: "border-line-strong text-secondary",
   } as const;
   return (
     <span
       className={cx(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 font-mono text-3xs uppercase tracking-[0.12em]",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-3xs lowercase",
         tones[tone],
         className
       )}
@@ -113,13 +93,13 @@ export function Pill({
 export function KV({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1">
-      <span className="font-mono text-2xs uppercase tracking-wider text-muted">{label}</span>
-      <span className="font-mono text-xs text-text">{value}</span>
+      <span className="text-2xs lowercase text-muted">{label}</span>
+      <span className="text-xs text-text">{value}</span>
     </div>
   );
 }
 
-// pof wordmark glyph — a six-spoke wheel echoing the flywheel diagram
+// pof glyph — a six-spoke wheel
 export function PofMark({ size = 20, className }: { size?: number; className?: string }) {
   return (
     <svg

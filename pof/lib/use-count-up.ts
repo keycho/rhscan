@@ -28,10 +28,11 @@ export function useCountUp(target: number, duration = 1100): number {
       const eased = 1 - Math.pow(1 - t, 3);
       const next = from + (target - from) * eased;
       setValue(next);
+      // track the displayed value so a mid-flight target change (the 1s sim
+      // tick) resumes from here instead of snapping back to the last target
+      fromRef.current = next;
       if (t < 1) {
         frameRef.current = requestAnimationFrame(step);
-      } else {
-        fromRef.current = target;
       }
     };
     frameRef.current = requestAnimationFrame(step);

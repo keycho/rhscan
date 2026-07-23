@@ -4,14 +4,6 @@
 
 :root {
   color-scheme: dark;
-  --bg: #070a08;
-  --panel: #0d100e;
-  --panel2: #121613;
-  --line: #1e2420;
-  --text: #e8f0ea;
-  --secondary: #a3b3aa;
-  --muted: #7d8c83;
-  --accent: #14f195;
 }
 
 html {
@@ -19,41 +11,48 @@ html {
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: #0b100c;
+  color: #d7ecdc;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(20, 241, 149, 0.28);
-  color: #eafff5;
+  background: rgba(78, 240, 138, 0.3);
+  color: #eafff2;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #242c27 transparent;
+  scrollbar-color: #24382a transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #242c27;
+  background: #24382a;
   border-radius: 4px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* faint grid backdrop behind the hero, terminal-style */
-.grid-backdrop {
-  background-image:
-    linear-gradient(rgba(20, 241, 149, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 241, 149, 0.028) 1px, transparent 1px);
-  background-size: 36px 36px;
-  mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 92%);
+/* chunky offset-shadow hero title, like the reference wordmark */
+.title-shadow {
+  text-shadow:
+    0.05em 0.05em 0 #14713f,
+    0.1em 0.1em 0 rgba(6, 48, 26, 0.55);
+}
+
+/* seamless marquee: content is rendered twice, track slides -50% */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+.marquee-mask:hover .marquee-track {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -66,5 +65,8 @@ body {
   }
   html {
     scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none !important;
   }
 }

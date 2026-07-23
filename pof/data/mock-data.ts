@@ -56,45 +56,45 @@ export const SERIES = {
 export const ALLOCATION_MODES: Record<EngineMode, AllocationSlice[]> = {
   Momentum: [
     { key: "liq", label: "Liquidity", pct: 35, color: SERIES.green },
-    { key: "acq", label: "Acquisition Reserve", pct: 25, color: SERIES.blue },
-    { key: "burn", label: "Burn Reserve", pct: 20, color: SERIES.amber },
-    { key: "comm", label: "Community", pct: 10, color: SERIES.magenta },
+    { key: "acq", label: "Growth", pct: 25, color: SERIES.blue },
+    { key: "burn", label: "Burn", pct: 20, color: SERIES.amber },
+    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
   Stability: [
     { key: "liq", label: "Liquidity", pct: 45, color: SERIES.green },
-    { key: "acq", label: "Acquisition Reserve", pct: 15, color: SERIES.blue },
-    { key: "burn", label: "Burn Reserve", pct: 10, color: SERIES.amber },
-    { key: "comm", label: "Community", pct: 10, color: SERIES.magenta },
+    { key: "acq", label: "Growth", pct: 15, color: SERIES.blue },
+    { key: "burn", label: "Burn", pct: 10, color: SERIES.amber },
+    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 20, color: SERIES.violet },
   ],
   Growth: [
     { key: "liq", label: "Liquidity", pct: 30, color: SERIES.green },
-    { key: "acq", label: "Acquisition Reserve", pct: 35, color: SERIES.blue },
-    { key: "burn", label: "Burn Reserve", pct: 15, color: SERIES.amber },
-    { key: "comm", label: "Community", pct: 10, color: SERIES.magenta },
+    { key: "acq", label: "Growth", pct: 35, color: SERIES.blue },
+    { key: "burn", label: "Burn", pct: 15, color: SERIES.amber },
+    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
   Defensive: [
     { key: "liq", label: "Liquidity", pct: 50, color: SERIES.green },
-    { key: "acq", label: "Acquisition Reserve", pct: 10, color: SERIES.blue },
-    { key: "burn", label: "Burn Reserve", pct: 5, color: SERIES.amber },
-    { key: "comm", label: "Community", pct: 10, color: SERIES.magenta },
+    { key: "acq", label: "Growth", pct: 10, color: SERIES.blue },
+    { key: "burn", label: "Burn", pct: 5, color: SERIES.amber },
+    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 25, color: SERIES.violet },
   ],
   Community: [
     { key: "liq", label: "Liquidity", pct: 30, color: SERIES.green },
-    { key: "acq", label: "Acquisition Reserve", pct: 15, color: SERIES.blue },
-    { key: "burn", label: "Burn Reserve", pct: 15, color: SERIES.amber },
-    { key: "comm", label: "Community", pct: 30, color: SERIES.magenta },
+    { key: "acq", label: "Growth", pct: 15, color: SERIES.blue },
+    { key: "burn", label: "Burn", pct: 15, color: SERIES.amber },
+    { key: "comm", label: "Holders", pct: 30, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
 };
 
 export const MODE_NOTES: Record<EngineMode, string> = {
-  Momentum: "aggressive routing into liquidity + acquisition. built for velocity.",
+  Momentum: "aggressive routing into liquidity + growth. built for velocity.",
   Stability: "liquidity-heavy split with a deeper treasury floor.",
-  Growth: "acquisition-weighted. reserves compound into buy-side pressure.",
+  Growth: "growth-weighted. value compounds into buy-side pressure.",
   Defensive: "max liquidity + treasury. slows the wheel, hardens the floor.",
   Community: "routes a triple tranche to holders and community programs.",
 };
@@ -116,20 +116,6 @@ export const CYCLE_SEED: Cycle[] = [
   { epoch: 3, feesIn: 0.52, liquidity: 0.18, burn: 0.1, community: 0.05, status: "Complete", atTick: -5290 },
 ];
 
-// deterministic pseudo-values for paginated "older" epochs (down to epoch 1)
-export function syntheticCycle(epoch: number): Cycle {
-  const h = Math.abs(Math.sin(epoch * 12.9898) * 43758.5453) % 1;
-  const fees = 0.2 + h * 0.6;
-  return {
-    epoch,
-    feesIn: fees,
-    liquidity: fees * 0.35,
-    burn: fees * 0.2,
-    community: fees * 0.105,
-    status: "Complete",
-    atTick: -120 - (12 - epoch) * 570,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // fees per epoch (chart seed — every closed epoch since genesis)
@@ -142,20 +128,6 @@ export const FEES_SERIES_SEED: FeesPoint[] = [
   { epoch: 10, fees: 0.55 }, { epoch: 11, fees: 0.71 },
 ];
 
-// ---------------------------------------------------------------------------
-// momentum / health
-// ---------------------------------------------------------------------------
-
-export const HEALTH_METRICS = [
-  { key: "momentum", label: "Momentum Score", value: 87, badge: "Strong" },
-  { key: "liquidity", label: "Liquidity Strength", value: 82, badge: "Strong" },
-  { key: "reserve", label: "Reserve Health", value: 91, badge: "Strong" },
-  { key: "consistency", label: "Cycle Consistency", value: 76, badge: "Stable" },
-  { key: "velocity", label: "Community Velocity", value: 64, badge: "Rising" },
-  { key: "stability", label: "Engine Stability", value: 88, badge: "Strong" },
-] as const;
-
-export const MOMENTUM_SPARK = [58, 62, 66, 64, 70, 73, 71, 76, 79, 82, 84, 87];
 
 // ---------------------------------------------------------------------------
 // activity feed
@@ -188,51 +160,8 @@ export const ACTIVITY_POOL: { tag: string; tone: ActivityEntry["tone"]; text: (r
   { tag: "launch", tone: "amber", text: () => "genesis template forked to draft engine" },
 ];
 
-// ---------------------------------------------------------------------------
-// launch slots
-// ---------------------------------------------------------------------------
 
-export const SLOTS = [
-  { id: "engine_001", label: "Genesis Engine", status: "Live", tone: "live" as const, note: "genesis wheel · $POF" },
-  { id: "slot_02", label: "Slot #02", status: "Available", tone: "open" as const, note: "next launch window — today" },
-  { id: "slot_03", label: "Slot #03", status: "Available", tone: "open" as const, note: "applications open" },
-  { id: "slot_04", label: "Slot #04", status: "Available", tone: "open" as const, note: "applications open" },
-  { id: "slot_05", label: "Slot #05", status: "Reserved", tone: "reserved" as const, note: "reserved for launch" },
-];
 
-export const SLOT_STATS = [
-  { label: "Active Engines", value: "1" },
-  { label: "Open Slots", value: "9" },
-  { label: "Applications", value: "Open" },
-  { label: "Next Launch Window", value: "Today" },
-];
-
-// ---------------------------------------------------------------------------
-// why tokens use pof
-// ---------------------------------------------------------------------------
-
-export const FEATURES = [
-  { icon: "LayoutDashboard", title: "Public flywheel dashboard", text: "a live terminal your holders can watch. proof that the engine is alive." },
-  { icon: "RefreshCw", title: "Transparent cycles", text: "every epoch settled in the open. fees in, allocations out." },
-  { icon: "Vault", title: "Reserve visibility", text: "liquidity, burn and community reserves tracked in real time." },
-  { icon: "GitBranch", title: "Allocation logic", text: "weighted routing you configure once and publish forever." },
-  { icon: "Gauge", title: "Engine modes", text: "momentum, stability, growth, defensive, community. switch anytime." },
-  { icon: "Rocket", title: "Launch-ready templates", text: "fork the genesis config. your engine live in one cycle." },
-  { icon: "Users", title: "Community-facing proofs", text: "milestones, tranches and burns your community can verify." },
-  { icon: "PlugZap", title: "Token onboarding", text: "paste an address, pick a mode, claim a slot. that's the setup." },
-];
-
-// ---------------------------------------------------------------------------
-// docs
-// ---------------------------------------------------------------------------
-
-export const DOCS = [
-  { title: "Engine setup guide", meta: "v0.4 · 6 min read" },
-  { title: "Allocation modes", meta: "v0.4 · 4 min read" },
-  { title: "Launch requirements", meta: "v0.3 · 3 min read" },
-  { title: "Dashboard modules", meta: "v0.4 · 5 min read" },
-  { title: "Public page examples", meta: "gallery · updated 2d ago" },
-];
 
 // ---------------------------------------------------------------------------
 // auth / wallet mocks
@@ -251,7 +180,6 @@ export const DEMO_WALLET: Omit<WalletState, "provider"> = {
   network: "Solana",
 };
 
-export const DEMO_FULL_ADDRESS = "7pOFxDEMO1111111111111111111111111111wheeL";
 
 export const WALLETS = [
   { name: "Phantom", initial: "P", color: "#ab9ff2" },

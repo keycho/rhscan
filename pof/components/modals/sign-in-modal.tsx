@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, Mail, MessageSquare, Wallet } from "lucide-react";
 import { Modal } from "./modal";
 import { usePof } from "@/lib/store";
-import { Pill, cx } from "@/components/ui";
+import { cx } from "@/components/ui";
 
 const PROVIDERS = [
   { id: "x", label: "Continue with X", icon: "x" as const },
@@ -40,8 +40,8 @@ export function SignInModal() {
 
   return (
     <Modal
-      title="Sign in to POF"
-      subtitle="access engine drafts, launch slots and deployment previews"
+      title="sign in to pof"
+      subtitle="access engine drafts, launch slots and deployments"
       onClose={closeModal}
     >
       <div className="space-y-2">
@@ -51,10 +51,10 @@ export function SignInModal() {
             onClick={() => handle(p.id)}
             disabled={loading !== null}
             className={cx(
-              "flex h-10 w-full items-center gap-3 rounded border border-line bg-panel2 px-3 text-[13px] font-medium text-secondary transition-colors",
+              "flex h-10 w-full items-center gap-3 rounded border border-line bg-panel2 px-3 text-xs font-medium text-secondary transition active:translate-y-px",
               loading === p.id
-                ? "border-accent/50 text-accent"
-                : "hover:border-accent/50 hover:text-text disabled:opacity-50"
+                ? "border-accent/60 text-accent"
+                : "hover:border-accent/60 hover:text-text disabled:opacity-50"
             )}
           >
             <span className="text-muted">
@@ -69,7 +69,7 @@ export function SignInModal() {
         ))}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+      <div className="mt-4 border-t border-line pt-3">
         <p className="text-3xs leading-4 text-faint">
           By continuing, you agree to the{" "}
           <span className="cursor-pointer text-muted underline decoration-line underline-offset-2 hover:text-secondary">
@@ -81,9 +81,6 @@ export function SignInModal() {
           </span>
           .
         </p>
-        <Pill tone="amber" className="shrink-0">
-          demo auth only
-        </Pill>
       </div>
     </Modal>
   );
