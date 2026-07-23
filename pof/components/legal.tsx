@@ -2,7 +2,10 @@ import Link from "next/link";
 import { PofMark } from "@/components/ui";
 
 export const INDEPENDENCE_NOTICE =
-  "proof of flywheel is an independent protocol and is not affiliated with or endorsed by pump.fun. creators must claim rewards through pump.fun before depositing them here. token performance, liquidity and returns are never guaranteed.";
+  "proof of flywheel is independent and is not affiliated with or endorsed by pump.fun. creator fees must be claimed on pump.fun separately — pof only routes SOL that a verified creator deposits. token performance, liquidity and returns are never guaranteed.";
+
+export const SEED_NOTICE =
+  "proof of flywheel never requests seed phrases or private keys.";
 
 export function LegalLinks({ className }: { className?: string }) {
   return (
@@ -29,7 +32,8 @@ export function LegalFooter() {
       <div className="mx-auto max-w-page px-4 py-5">
         <LegalLinks className="flex flex-wrap" />
         <p className="mt-3 max-w-2xl text-3xs leading-4 text-faint">{INDEPENDENCE_NOTICE}</p>
-        <p className="mt-2 text-3xs text-faint">© 2026 proof of flywheel</p>
+        <p className="mt-1 text-3xs leading-4 text-faint">{SEED_NOTICE}</p>
+        <p className="mt-2 text-3xs text-faint">© 2026 proof of flywheel · deposit. route. verify.</p>
       </div>
     </footer>
   );

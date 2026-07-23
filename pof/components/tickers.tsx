@@ -4,18 +4,17 @@ import { usePof } from "@/lib/store";
 import { fmt, fmtAgo } from "@/lib/format";
 import { cx } from "@/components/ui";
 
-// two live strips under the nav, like the reference's escrow + payout tickers.
-// row 1: outlined pills with protocol status. row 2: thin feed of sim events.
+// two live strips under the nav. row 1: protocol status pills.
+// row 2: thin feed of engine events (simulated — see activity section).
 export function Tickers() {
-  const { activity, cycles, tick, speed } = usePof();
+  const { activity, cycles, tick } = usePof();
   const settled = cycles.find((c) => c.status === "Complete");
 
   const pills = [
-    "claim on pump.fun → deposit rewards → execute routing cycle",
-    settled ? `cycle #${settled.epoch} complete · ${fmt(settled.feesIn, 2)} SOL routed` : "",
-    `genesis engine active · ${fmt(speed, 0)}% wheel speed`,
-    "slot board open · be the next flywheel",
-    "applications open · launch window today",
+    "creator-funded flywheels live",
+    "deposit SOL → execute routing cycle",
+    "connect creator wallet → detect eligible tokens",
+    settled ? `cycle complete · ${fmt(settled.feesIn, 2)} SOL routed` : "",
   ].filter(Boolean);
 
   const feed = activity.slice(0, 8);

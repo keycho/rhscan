@@ -11,10 +11,10 @@ export function FeaturedFlywheel() {
   const routed = useCountUp(feesRouted);
 
   const cells = [
-    { value: `${fmt(routed, 2)} SOL`, label: "claimed rewards routed" },
+    { value: `${fmt(routed, 2)} SOL`, label: "SOL routed" },
     { value: `${fmt(feesRouted * 0.35, 2)} SOL`, label: "to liquidity" },
-    { value: `${GENESIS.burnedSupply} tokens`, label: "burned" },
-    { value: `${fmt(feesRouted * 0.105, 2)} SOL`, label: "to holders" },
+    { value: `${GENESIS.burnedSupply} tokens`, label: "burned via buyback" },
+    { value: `${fmt(feesRouted * 0.1, 2)} SOL`, label: "holder vault (reserved)" },
   ];
 
   return (
@@ -27,9 +27,14 @@ export function FeaturedFlywheel() {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-bold text-text">Proof of Flywheel</p>
-            <p className="text-2xs text-accent">{GENESIS.ticker}</p>
+            <p className="text-2xs text-accent">
+              {GENESIS.ticker} <span className="text-faint">· mint {GENESIS.mint}</span>
+            </p>
           </div>
-          <div className="ml-auto flex items-center gap-3 text-2xs">
+          <div className="ml-auto flex items-center gap-2 text-2xs">
+            <span className="rounded-full border border-amber/40 px-2 py-0.5 text-3xs lowercase text-amber">
+              protocol simulation
+            </span>
             <span className="flex items-center gap-1.5 text-accent">
               <LiveDot /> active
             </span>
@@ -53,9 +58,8 @@ export function FeaturedFlywheel() {
         </div>
 
         <p className="border-y border-line bg-panel2/60 px-4 py-2 text-center text-3xs text-secondary">
-          claim on pump.fun <span className="text-accent">→</span> deposit rewards{" "}
-          <span className="text-accent">→</span> execute routing cycle{" "}
-          <span className="text-accent">→</span> liquidity / burns / holders / treasury
+          creator deposit <span className="text-accent">→</span> routing cycle{" "}
+          <span className="text-accent">→</span> liquidity / buyback / holder vault / treasury
         </p>
 
         <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
@@ -67,7 +71,7 @@ export function FeaturedFlywheel() {
           ))}
         </div>
         <p className="border-t border-line px-4 py-2 text-center text-3xs text-faint">
-          reserve balances publish on-chain at launch
+          demonstration data — no figure on this card is a confirmed onchain transaction
         </p>
       </Card>
     </section>

@@ -2,7 +2,7 @@
 
 import { usePof } from "@/lib/store";
 import { X_URL } from "@/data/mock-data";
-import { INDEPENDENCE_NOTICE, LegalLinks } from "@/components/legal";
+import { INDEPENDENCE_NOTICE, LegalLinks, SEED_NOTICE } from "@/components/legal";
 import { PofMark } from "@/components/ui";
 
 const DOC_LINKS = [
@@ -25,10 +25,9 @@ export function SiteFooter() {
               proof of flywheel<span className="text-accent">_</span>
             </span>
           </div>
-          <p className="mt-2 text-2xs text-accent">every trade turns the wheel</p>
+          <p className="mt-2 text-2xs text-accent">creator-funded SOL turns the wheel</p>
           <p className="mt-1 max-w-[280px] text-2xs leading-4 text-muted">
-            a public flywheel layer for launch tokens. fees in. liquidity grows. supply burns.
-            holders earn.
+            a configurable routing layer for Pump.fun token creators. deposit. route. verify.
           </p>
         </div>
         <div>
@@ -79,8 +78,9 @@ export function SiteFooter() {
             <p className="text-3xs text-faint">reserve balances publish on-chain at launch</p>
           </div>
           <p className="mt-3 max-w-3xl text-3xs leading-4 text-faint">{INDEPENDENCE_NOTICE}</p>
+          <p className="mt-1 text-3xs leading-4 text-faint">{SEED_NOTICE}</p>
           <p className="mt-2 text-3xs text-faint">
-            © 2026 proof of flywheel · every trade turns the wheel
+            © 2026 proof of flywheel · deposit. route. verify.
           </p>
         </div>
       </div>

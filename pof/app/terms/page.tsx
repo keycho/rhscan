@@ -20,7 +20,8 @@ export default function TermsPage() {
         {
           heading: "2. what the protocol does",
           body: [
-            "Proof of Flywheel provides configurable routing of creator rewards that you deposit into it. The Protocol does not, and cannot, claim, pull or receive creator rewards on your behalf from Pump.fun or any other platform. You must claim your creator rewards yourself on the originating platform and then deposit them into the Protocol. Only routing that occurs after your deposit may be automated.",
+            "Proof of Flywheel provides configurable routing of SOL that a verified token creator deposits into a flywheel. The Protocol does not, and cannot, claim, pull or receive Pump.fun creator fees on your behalf, and it does not access creator wallets. Deposited SOL may include creator fees you previously claimed on Pump.fun, but the Protocol does not and cannot verify the source of deposited funds. Only routing that occurs after your signed deposit may be automated.",
+            "Only the verified creator wallet may activate a flywheel, change its routing configuration, set treasury addresses, or pause or close it. Every deposit and configuration change requires a transaction signed by that wallet. The Protocol never requests, stores or displays seed phrases or private keys.",
             INDEPENDENCE_NOTICE,
           ],
         },

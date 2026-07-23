@@ -5,18 +5,18 @@ import { Card } from "@/components/ui";
 const STEPS = [
   {
     num: "01 / Connect",
-    body: "Connect the wallet that created the token on Pump.fun.",
+    body: "Connect the wallet that created the Pump.fun token.",
     footer: "> verify creator wallet · detect eligible token",
   },
   {
     num: "02 / Configure",
-    body: "Choose how claimed creator rewards will be split between liquidity, burns, holder rewards and treasury.",
-    footer: "> set routing weights · save configuration",
+    body: "Choose how deposited SOL will be routed through the token economy.",
+    footer: "> set routing weights · preview cycle",
   },
   {
-    num: "03 / Claim & Route",
-    body: "Claim creator rewards from Pump.fun, then deposit them into the flywheel to execute the next cycle.",
-    footer: "> claimed rewards in · token momentum out",
+    num: "03 / Fund & Execute",
+    body: "Deposit SOL into the flywheel and execute the routing cycle.",
+    footer: "> deposited SOL in · token momentum out",
   },
 ];
 
@@ -24,7 +24,7 @@ export function HowItWorks() {
   return (
     <section className="mx-auto max-w-page px-4 pb-12">
       <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-text">
-        HOW IT WORKS — THE LOOP NEVER STOPS.
+        HOW IT WORKS — FUND. ROUTE. TURN.
       </h2>
       <div className="grid gap-2.5 md:grid-cols-3">
         {STEPS.map((s) => (

@@ -2,89 +2,68 @@
 
 import { useState } from "react";
 import { Lock, Save } from "lucide-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { usePof } from "@/lib/store";
-import { ALLOCATION_MODES, MODE_NOTES } from "@/data/mock-data";
-import type { EngineMode } from "@/types";
-import { Card, SectionHead, cx } from "@/components/ui";
-
-const MODES = Object.keys(ALLOCATION_MODES) as EngineMode[];
+import { MODE_NOTES, ROUTING_DESCRIPTIONS } from "@/data/mock-data";
+import type { AllocationSlice, EngineMode } from "@/types";
+import { Card, SectionHead } from "@/components/ui";
+import { RoutingEditor, TxPreview, slicesForMode, totalPct } from "@/components/routing-editor";
 
 export function AllocationBar() {
-  const { user, gate, toast } = usePof();
+  const { openModal, toast } = usePof();
+  const { connected } = useWallet();
   const [mode, setMode] = useState<EngineMode>("Momentum");
-  const slices = ALLOCATION_MODES[mode];
+  const [slices, setSlices] = useState<AllocationSlice[]>(() => slicesForMode("Momentum"));
+
+  const save = () => {
+    if (!connected) {
+      openModal("wallet");
+      return;
+    }
+    if (totalPct(slices) !== 100) {
+      toast("allocation must total exactly 100%", "info");
+      return;
+    }
+    toast("configuration preview saved locally — applies when the protocol goes live", "info");
+  };
 
   return (
     <section className="mx-auto max-w-page px-4 pb-12">
       <SectionHead
-        title="allocation engine"
-        right="switch modes · weights apply from next cycle"
+        title="SOL routing configuration"
+        right="choose how each deposited SOL cycle supports the token"
       />
       <Card>
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-4 py-3">
-          {MODES.map((m) => (
+        <div className="grid gap-4 px-4 py-4 lg:grid-cols-[1.5fr_1fr]">
+          <div>
+            <RoutingEditor slices={slices} onChange={setSlices} mode={mode} onMode={setMode} />
+            <p className="mt-3 text-3xs text-faint">{MODE_NOTES[mode]}</p>
             <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cx(
-                "rounded border px-2.5 py-1 text-2xs lowercase transition active:translate-y-px",
-                m === mode
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-line text-muted hover:border-line-strong hover:text-secondary"
-              )}
+              onClick={save}
+              className="mt-3 flex items-center gap-1.5 rounded border border-line px-2.5 py-1.5 text-3xs lowercase text-muted transition hover:border-accent hover:text-accent"
             >
-              {m}
+              {connected ? <Save size={11} /> : <Lock size={11} />}
+              save configuration
             </button>
-          ))}
-          <button
-            onClick={() => gate("user", () => toast(`"${mode.toLowerCase()}" preset saved`))}
-            className="ml-auto flex items-center gap-1.5 rounded border border-line px-2 py-1 text-3xs lowercase text-muted transition hover:border-accent hover:text-accent"
-          >
-            {user ? <Save size={11} /> : <Lock size={11} />}
-            save preset
-          </button>
-        </div>
-
-        {/* terminal-style allocation line */}
-        <p className="border-b border-line bg-panel2/60 px-4 py-2.5 text-center text-2xs font-bold tracking-wide text-text">
-          {slices.map((s, i) => (
-            <span key={s.key}>
-              <span className="uppercase">{s.label}</span>{" "}
-              <span className="text-accent">{s.pct}%</span>
-              {i < slices.length - 1 ? <span className="text-faint"> | </span> : null}
-            </span>
-          ))}
-        </p>
-
-        <div className="px-4 py-3.5">
-          {/* segmented bar */}
-          <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-sm">
-            {slices.map((s) => (
-              <div
-                key={s.key}
-                className="transition-all duration-500"
-                style={{ width: `${s.pct}%`, backgroundColor: s.color }}
-                title={`${s.label} ${s.pct}%`}
-              />
-            ))}
+            <p className="mt-2 text-3xs text-faint">
+              only the verified creator wallet can change the routing configuration, set treasury
+              addresses, or pause the flywheel. every change requires a signed transaction.
+            </p>
           </div>
-          {/* per-slice bars */}
-          <div className="mt-3.5 space-y-1.5">
-            {slices.map((s) => (
-              <div key={s.key} className="flex items-center gap-2.5">
-                <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} />
-                <span className="w-20 text-2xs text-secondary">{s.label}</span>
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel2">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${(s.pct / 50) * 100}%`, backgroundColor: s.color }}
-                  />
-                </div>
-                <span className="w-9 text-right text-2xs tabular-nums text-text">{s.pct}%</span>
-              </div>
-            ))}
+
+          <div>
+            <p className="mb-1.5 text-2xs lowercase text-muted">transaction preview · 1 SOL cycle</p>
+            <TxPreview slices={slices} amount={1} />
+            <div className="mt-3 space-y-2">
+              {slices.map((s) => (
+                <p key={s.key} className="text-3xs leading-4 text-faint">
+                  <span className="mr-1 inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: s.color }} />
+                  <span className="text-muted">{s.label.toLowerCase()}:</span>{" "}
+                  {ROUTING_DESCRIPTIONS[s.key]}
+                </p>
+              ))}
+            </div>
           </div>
-          <p className="mt-3 text-3xs text-faint">{MODE_NOTES[mode]}</p>
         </div>
       </Card>
     </section>

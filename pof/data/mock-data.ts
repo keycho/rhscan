@@ -4,9 +4,6 @@ import type {
   Cycle,
   EngineMode,
   FeesPoint,
-  UserEngine,
-  UserProfile,
-  WalletState,
 } from "@/types";
 
 export const X_URL = "https://x.com/ProofofFlywheel";
@@ -29,10 +26,14 @@ export const GENESIS = {
   engineId: "001",
   network: "Solana",
   platform: "Pump.fun",
+  mint: "4GnW…hE3L",
+  graduation: "graduated",
+  pool: "canonical PumpSwap pool live",
+  eligibility: "eligible",
   mode: "Momentum" as EngineMode,
   epoch: 12,
   nextCycleSeconds: 261, // 04:21
-  feesRouted: 6.1,
+  feesRouted: 6.05,
   totalCycles: 11,
   flywheelSpeed: 92,
   momentumScore: 87,
@@ -59,36 +60,36 @@ export const ALLOCATION_MODES: Record<EngineMode, AllocationSlice[]> = {
   Momentum: [
     { key: "liq", label: "Liquidity", pct: 35, color: SERIES.green },
     { key: "acq", label: "Growth", pct: 25, color: SERIES.blue },
-    { key: "burn", label: "Burn", pct: 20, color: SERIES.amber },
-    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
+    { key: "burn", label: "Buyback & Burn", pct: 20, color: SERIES.amber },
+    { key: "comm", label: "Holder Rewards", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
   Stability: [
     { key: "liq", label: "Liquidity", pct: 45, color: SERIES.green },
     { key: "acq", label: "Growth", pct: 15, color: SERIES.blue },
-    { key: "burn", label: "Burn", pct: 10, color: SERIES.amber },
-    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
+    { key: "burn", label: "Buyback & Burn", pct: 10, color: SERIES.amber },
+    { key: "comm", label: "Holder Rewards", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 20, color: SERIES.violet },
   ],
   Growth: [
     { key: "liq", label: "Liquidity", pct: 30, color: SERIES.green },
     { key: "acq", label: "Growth", pct: 35, color: SERIES.blue },
-    { key: "burn", label: "Burn", pct: 15, color: SERIES.amber },
-    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
+    { key: "burn", label: "Buyback & Burn", pct: 15, color: SERIES.amber },
+    { key: "comm", label: "Holder Rewards", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
   Defensive: [
     { key: "liq", label: "Liquidity", pct: 50, color: SERIES.green },
     { key: "acq", label: "Growth", pct: 10, color: SERIES.blue },
-    { key: "burn", label: "Burn", pct: 5, color: SERIES.amber },
-    { key: "comm", label: "Holders", pct: 10, color: SERIES.magenta },
+    { key: "burn", label: "Buyback & Burn", pct: 5, color: SERIES.amber },
+    { key: "comm", label: "Holder Rewards", pct: 10, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 25, color: SERIES.violet },
   ],
   Community: [
     { key: "liq", label: "Liquidity", pct: 30, color: SERIES.green },
     { key: "acq", label: "Growth", pct: 15, color: SERIES.blue },
-    { key: "burn", label: "Burn", pct: 15, color: SERIES.amber },
-    { key: "comm", label: "Holders", pct: 30, color: SERIES.magenta },
+    { key: "burn", label: "Buyback & Burn", pct: 15, color: SERIES.amber },
+    { key: "comm", label: "Holder Rewards", pct: 30, color: SERIES.magenta },
     { key: "trea", label: "Treasury", pct: 10, color: SERIES.violet },
   ],
 };
@@ -96,9 +97,18 @@ export const ALLOCATION_MODES: Record<EngineMode, AllocationSlice[]> = {
 export const MODE_NOTES: Record<EngineMode, string> = {
   Momentum: "aggressive routing into liquidity + growth. built for velocity.",
   Stability: "liquidity-heavy split with a deeper treasury floor.",
-  Growth: "growth-weighted. value compounds into buy-side pressure.",
+  Growth: "growth-weighted. deposits compound into buy-side pressure.",
   Defensive: "max liquidity + treasury. slows the wheel, hardens the floor.",
-  Community: "routes a triple tranche to holders and community programs.",
+  Community: "routes a triple tranche into the holder-reward vault.",
+};
+
+// what each destination actually does with deposited SOL — no overclaiming
+export const ROUTING_DESCRIPTIONS: Record<string, string> = {
+  liq: "may swap part of the SOL into the token and pair both assets in the supported PumpSwap pool. requires a graduated token with a canonical pool. liquidity is only reported added once the transaction confirms.",
+  burn: "SOL is swapped for the token and the acquired tokens are sent to a recognised burn address. the SOL itself is not burned.",
+  comm: "routed into a holder-reward vault. rewards are reserved for holder distribution.",
+  trea: "transferred to the treasury address configured by the verified creator. destination shown before confirmation.",
+  acq: "transferred to the growth address configured by the verified creator. destination shown before confirmation.",
 };
 
 // ---------------------------------------------------------------------------
@@ -141,60 +151,20 @@ export const ACTIVITY_SEED: ActivityEntry[] = [
   { id: 6, tag: "engine", text: "flywheel speed increased to 92%", tone: "green", atTick: -260 },
   { id: 5, tag: "burn", text: "burn tranche staged for epoch #12", tone: "amber", atTick: -410 },
   { id: 4, tag: "reserve", text: "holder tranche prepared — 0.06 SOL", tone: "neutral", atTick: -520 },
-  { id: 3, tag: "launch", text: "launch slot #02 opened for applications", tone: "amber", atTick: -700 },
+  { id: 3, tag: "engine", text: "holder-reward vault initialised", tone: "amber", atTick: -700 },
   { id: 2, tag: "cycle", text: "epoch #11 settled — 0.71 SOL routed", tone: "green", atTick: -740 },
   { id: 1, tag: "engine", text: "genesis engine ignited — public dashboard live", tone: "green", atTick: -880 },
 ];
 
 // templates cycled by the simulation ticker; {r} is replaced with a jittered value
 export const ACTIVITY_POOL: { tag: string; tone: ActivityEntry["tone"]; text: (r: number) => string }[] = [
-  { tag: "reserve", tone: "neutral", text: (r) => `creator deposit received · ${(0.04 + r * 0.09).toFixed(3)} SOL` },
   { tag: "engine", tone: "green", text: (r) => `flywheel speed holding ${(91 + r * 2).toFixed(1)}%` },
-  { tag: "cycle", tone: "green", text: (r) => `cycle checkpoint — ${(0.05 + r * 0.15).toFixed(2)} SOL routed to liquidity` },
+  { tag: "cycle", tone: "green", text: (r) => `buyback executed — ${(0.05 + r * 0.15).toFixed(2)} SOL swapped for $POF` },
   { tag: "burn", tone: "amber", text: (r) => `${(0.01 + r * 0.05).toFixed(3)} SOL staged for burn tranche` },
-  { tag: "reserve", tone: "neutral", text: (r) => `growth reserve topped up +${(0.02 + r * 0.06).toFixed(3)} SOL` },
   { tag: "engine", tone: "neutral", text: () => "allocation engine rebalance check passed" },
-  { tag: "launch", tone: "amber", text: () => "launch slot inquiry received — queue open" },
   { tag: "cycle", tone: "green", text: (r) => `momentum sample recorded — score ${(85 + r * 4).toFixed(0)}` },
   { tag: "reserve", tone: "neutral", text: (r) => `holder tranche accruing — ${(0.03 + r * 0.05).toFixed(2)} SOL pending` },
   { tag: "engine", tone: "neutral", text: () => "public dashboard heartbeat ok" },
   { tag: "burn", tone: "amber", text: () => "burn tranche staged — settles next cycle" },
-  { tag: "launch", tone: "amber", text: () => "genesis template forked to draft engine" },
 ];
 
-
-
-
-// ---------------------------------------------------------------------------
-// auth / wallet mocks
-// ---------------------------------------------------------------------------
-
-export const DEMO_PROFILE: UserProfile = {
-  name: "genesis operator",
-  username: "@wheeloperator",
-  role: "Engine Admin",
-  plan: "Genesis",
-};
-
-export const DEMO_WALLET: Omit<WalletState, "provider"> = {
-  address: "7pOF...wheeL",
-  balance: 18.42,
-  network: "Solana",
-  claimedRewards: 2.4,
-};
-
-
-export const WALLETS = [
-  { name: "Phantom", initial: "P", color: "#ab9ff2" },
-  { name: "Solflare", initial: "S", color: "#fc9d43" },
-  { name: "Backpack", initial: "B", color: "#e33e3f" },
-  { name: "Coinbase Wallet", initial: "C", color: "#3773f5" },
-  { name: "WalletConnect", initial: "W", color: "#3b99fc" },
-];
-
-export const SEED_ENGINES: UserEngine[] = [
-  { id: "genesis", name: "Genesis Engine", statusLabel: "Live", status: "live", mode: "Momentum", slug: "genesis" },
-  { id: "draft-1", name: "Draft Engine", statusLabel: "Configuration incomplete", status: "draft", mode: "Stability", slug: "draft-engine" },
-];
-
-export const CYCLE_TRIGGERS = ["every 30 min", "every 100 trades", "fee threshold · 1 SOL"];
